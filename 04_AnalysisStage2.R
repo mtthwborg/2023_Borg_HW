@@ -57,7 +57,7 @@ exposure.country.mean <- colMeans(exposure.by) # could arguably weight by area n
 ## Calculate potential meta-analysis predictors 
 exposure.mean <- exposure[,1] # mean exposure
 mm.pred.m <- matrix(rep(1,length.ds.stratum), nrow=length.ds.stratum, dimnames=list(ds.stratum,'1'))
-by.vars.ds <- cbind(unique(daily.ds[,mget(by.vars3)]), mm.pred.m) # data frame with categories and mixmeta.predictors
+by.vars.ds <- cbind(unique(daily.ds[,City]), mm.pred.m) # data frame with categories and mixmeta.predictors
 
 ## Meta-analysis. Default methods is REML
 mv <- mixmeta(coef~1, vcov, data=by.vars.ds)
@@ -667,7 +667,7 @@ write.csv(exposure.rr, file=paste0(s2locations, 'Exposure values RR.csv'), na=''
 
 ### Full meta-analysis with random-predictor. BLUPs will be conditional expectations given the random effects (Sera et al 2019)
 
-  for(j in by.vars3) { # City and outorin
+  for(j in by.vars3) { # City and outorin, but by.vars3 is just 'City' here
     # j <- 'City'
     mixv_j <- mixmeta(coef~1, vcov, random=~1|by.vars.ds[,get(j)], data=by.vars.ds) # BLUP will be conditionally dependent on random predictor. Usage of predictor like this identical to City (city results identical for both indoor and outdoor) or outorin (outorin results identical for all cities)
     if(j=='City') {

@@ -3,10 +3,10 @@
 ##################################################
 
 ## Outcome variable
-outcome.var <- 'Total costs' # "Number of illnesses" or "Total costs"
+outcome.var <- 'Total costs' # "Number of OIIs" or "Total costs"
 
 ## Exposure variable
-exposure.var <- 'Maximum WBGT' 
+exposure.var <- 'Excess heat factor' # 'Excess heat factor' 'Excess heat factor (forward)' 'Excess heat index factor' 'Excess heat index factor (forward)'
 
 
 ### Model parameters
@@ -18,7 +18,7 @@ edf <- length(eknots) + 1 # Number of coefficients
 
 ## Lag parameters
 lspline <- 'ns' # For use with splines package as part of dlnm
-lmax <- 20 # Duration of lag period (days)
+lmax <- 10 # Duration of lag period (days)
 no.lknots <- 1 # Ignored if lspline = 'integer'(unconstrained)
 
 if(lspline=='integer') { # unconstrained dlnm, 1 parameter per lag
@@ -44,12 +44,12 @@ mdf <- '4' # Seasonality df
 trend <- paste0("ns(Date,",mdf,"*.no.years)")
 trend.gam <- paste0("s(date,bs='cr',k=",mdf,"*.no.years,fx=T)") # If use "s(", MUST include "bs=" even if default tp, as later code requires detecting "bs="
 
-## Base formula. Must include ".outcome ~ .cb" which are coded to be the outcome variable and crossbasis (with exposure variable and lag) respectively. if crossbasis for humidity, included as ,cb2
-m.formula <- paste0('.outcome ~ .cb + Tue+Wed+Thu+Fri+Sat+Sun +Sat*public.hol + Sun:public.hol + month + offset(log(n)) + Sat*school.hols + Sun:school.hols + Sat*day1 + Sun:day1 + shol +') # Feb+Mar+Apr+May+Jun+Jul+Aug+Sep+Oct+Nov+Dec # month + offset(log(n)) +
+## Base formula. Must include ".outcome ~ .cb" which are coded to be the outcome variable and crossbasis (with exposure variable and lag) respectively
+m.formula <- paste0('.outcome ~ .cb + Tue+Wed+Thu+Fri+Sat+Sun +Sat*public.hol + Sun:public.hol + month + offset(log(n)) + Sat*school.hols + Sun:school.hols + Sat*day1 + Sun:day1 + shol +')
 
 
-## Distribution choice. auto2 is Poisson for OIIs, Tweedie for costs. auto uses quasipoisson instead of Poisson. Can be set to a distribution of your choice to force said distirbution (if it exists)
-distribution.choice <- 'auto2' # 'auto' 'quasipoisson' 'Tweedie' # if use costs with quasipoisson, must use non-000 results
+## Distribution choice. auto is quasipoisson for OIIs, Tweedie for costs. auto uses quasipoisson instead of Poisson. Can be set to a distribution of your choice to force said distirbution (if it exists)
+distribution.choice <- 'auto' # 'auto' 'quasipoisson' 'Tweedie' # if use costs with quasipoisson, must use non-000 results
 
 
 
