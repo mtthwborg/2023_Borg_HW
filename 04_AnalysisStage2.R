@@ -56,7 +56,7 @@ exposure.country.mean <- colMeans(exposure.by) # could arguably weight by area n
 
 ## Calculate potential meta-analysis predictors 
 exposure.mean <- exposure[,1] # mean exposure
-mm.pred.m <- matrix(rep(1,length.ds.stratum), nrow=length.ds.stratum, dimnames=list(ds.stratum,'1'))
+mm.pred.m <- matrix(rep(1,length.ds.city), nrow=length.ds.city, dimnames=list(ds.city,'1'))
 by.vars.ds <- cbind(unique(daily.ds[,City]), mm.pred.m) # data frame with categories and mixmeta.predictors
 
 ## Meta-analysis. Default methods is REML
@@ -75,19 +75,19 @@ blups <- blup(mv, vcov=T) # BLUPs. Element for each stratum
 ##################################################
 
 # Generate matrix for storing re-centred results
-minpercity <- mintempcity <- rep(NA,length.ds.stratum)
-names(mintempcity) <- names(minpercity) <- ds.stratum
+minpercity <- mintempcity <- rep(NA,length.ds.city)
+names(mintempcity) <- names(minpercity) <- ds.city
 
 # Define minimum injuries values, excluding very low and hot Ts (<1st and >99th percentiles)
-for(i in ds.stratum) {
-  .ds <- daily.ds[stratum==i] # dataset for each unique value # daily.ds[stratum=='Hobart: Indoor']
+for(i in ds.city) {
+  .ds <- daily.ds[City==i] # dataset for each unique value # daily.ds[stratum=='Hobart: Indoor']
   
   # Use same exposure-response relationship, but for exposure percentiles 1-99
   .predvar <- quantile(temps[[i]], 1:99/100,na.rm=T)
   .argvar.bound <- list(x=.predvar, fun=espline, knots=quantile(temps[[i]], eknots, na.rm=T), Bound=range(temps[[i]], na.rm=T)) # list of arguments
   
   # Redefine function using all arguments, boundary knots included
-  .blups <- blups[[which(ds.stratum==i)]] 
+  .blups <- blups[[which(ds.city==i)]] 
   .bvar.bound <- do.call(onebasis, .argvar.bound) # basis for exposure-response
   .bvar1 <- .bvar.bound%*%.blups$blup # 
   minpercity[i] <- (1:99)[which.min(.bvar1)] # if stop using 1:99, may need to change code so that position links to actual percentile
@@ -138,15 +138,15 @@ cp <- crosspred(bvar, coef=mvpred$fit, vcov=mvpred$vcov, model.link="log", at=ex
 # Objects to store overall cumulative exposure results (lag-response association at set percentiles vs centering value)
 cvlag.length <- length(crossreduce(.cb, model=model[[i]], "var", value=exposure.by[1,'1'], cen=.cen, model.link='log')$coefficients) # only interested in length, uses last cb from S1 but that is irrelevant
 
-coeflag1 <- coeflag2<- coeflag10 <- coeflag25 <- coeflag50 <- coeflag75 <- coeflag90<- coeflag975 <- coeflag99 <- matrix(NA, length.ds.stratum, cvlag.length, dimnames=list(ds.stratum)) # not really sure why columns is 3. I though 8 was for columns for lag 0 + each lag day. CHANGED WHEN I INCREASED PARAMETES FROM edf TO edf + 1
-cpmodel <- vcovlag1 <- vcovlag2 <- vcovlag10 <- vcovlag25 <- vcovlag50 <- vcovlag75 <- vcovlag90 <- vcovlag975 <- vcovlag99 <- vector("list", length.ds.stratum)
-names(cpmodel)<-names(vcovlag1)<-names(vcovlag2)<-names(vcovlag10)<-names(vcovlag25)<-names(vcovlag50)<-names(vcovlag75)<-names(vcovlag90)<-names(vcovlag975)<-names(vcovlag99) <- ds.stratum
+coeflag1 <- coeflag2<- coeflag10 <- coeflag25 <- coeflag50 <- coeflag75 <- coeflag90<- coeflag975 <- coeflag99 <- matrix(NA, length.ds.city, cvlag.length, dimnames=list(ds.city)) # not really sure why columns is 3. I though 8 was for columns for lag 0 + each lag day. CHANGED WHEN I INCREASED PARAMETES FROM edf TO edf + 1
+cpmodel <- vcovlag1 <- vcovlag2 <- vcovlag10 <- vcovlag25 <- vcovlag50 <- vcovlag75 <- vcovlag90 <- vcovlag975 <- vcovlag99 <- vector("list", length.ds.city)
+names(cpmodel)<-names(vcovlag1)<-names(vcovlag2)<-names(vcovlag10)<-names(vcovlag25)<-names(vcovlag50)<-names(vcovlag75)<-names(vcovlag90)<-names(vcovlag975)<-names(vcovlag99) <- ds.city
 
 # Run model for each by.vars with re-centered values to obtain lag-reponse relationship at the 1st and 99th percentile
 
-for(i in ds.stratum) {
+for(i in ds.city) {
   # print(paste('Stage 2 individual models:',i))
-  .ds <- daily.ds[stratum==i] # dataset for each unique value
+  .ds <- daily.ds[City==i] # dataset for each unique value
   .name <- unique(.ds$stratum) # names with all of a, b and c together
   
   .outcome <- .ds[,get(outcome.var)] # outcome
@@ -207,15 +207,15 @@ for(i in ds.stratum) {
 
 
 # Run meta-analysis with lag models 
-mvlag1 <- mixmeta(coeflag1~1, vcovlag1, data=list(ds.stratum)) 
-mvlag2 <- mixmeta(coeflag2~1, vcovlag2, data=list(ds.stratum))
-mvlag10 <- mixmeta(coeflag10~1, vcovlag10, data=list(ds.stratum)) 
-mvlag25 <- mixmeta(coeflag25~1, vcovlag25, data=list(ds.stratum))
-mvlag50 <- mixmeta(coeflag50~1, vcovlag50, data=list(ds.stratum))
-mvlag75 <- mixmeta(coeflag75~1, vcovlag75, data=list(ds.stratum)) 
-mvlag90 <- mixmeta(coeflag90~1, vcovlag90, data=list(ds.stratum))
-mvlag975 <- mixmeta(coeflag975~1, vcovlag975, data=list(ds.stratum)) 
-mvlag99 <- mixmeta(coeflag99~1, vcovlag99, data=list(ds.stratum))
+mvlag1 <- mixmeta(coeflag1~1, vcovlag1, data=list(ds.city)) 
+mvlag2 <- mixmeta(coeflag2~1, vcovlag2, data=list(ds.city))
+mvlag10 <- mixmeta(coeflag10~1, vcovlag10, data=list(ds.city)) 
+mvlag25 <- mixmeta(coeflag25~1, vcovlag25, data=list(ds.city))
+mvlag50 <- mixmeta(coeflag50~1, vcovlag50, data=list(ds.city))
+mvlag75 <- mixmeta(coeflag75~1, vcovlag75, data=list(ds.city)) 
+mvlag90 <- mixmeta(coeflag90~1, vcovlag90, data=list(ds.city))
+mvlag975 <- mixmeta(coeflag975~1, vcovlag975, data=list(ds.city)) 
+mvlag99 <- mixmeta(coeflag99~1, vcovlag99, data=list(ds.city))
 # for(p in c(1,2.5,10,25,50,75,90,97.5,99))
 
 # Predict pooled coefficients
@@ -277,21 +277,21 @@ write.csv(results, file=paste0(s2results,'RR (95% CI).csv'), na='', row.names=F)
 ################################################################################
 
 # Create vectors to store total injuries, accounting for missing
-totclaims <- rep(NA,length.ds.stratum)
-names(totclaims) <- ds.stratum
+totclaims <- rep(NA,length.ds.city)
+names(totclaims) <- ds.city
 
 # Objects to store attributable injuries (simulations)
 sim.names <- c("Total","Cold","Heat","Extreme cold","Moderate cold","Moderate heat","Extreme heat")
 length.sim <- length(sim.names)
-matsim <- matrix(NA, length.ds.stratum, length.sim, dimnames=list(ds.stratum, sim.names)) # matrix: attributable injuries
-arraysim <- array(NA, dim=c(length.ds.stratum, length.sim, nsim), dimnames=list(ds.stratum, sim.names)) # array: attributable injuries CI
+matsim <- matrix(NA, length.ds.city, length.sim, dimnames=list(ds.city, sim.names)) # matrix: attributable injuries
+arraysim <- array(NA, dim=c(length.ds.city, length.sim, nsim), dimnames=list(ds.city, sim.names)) # array: attributable injuries CI
 
 # Run loop
 gc()
-for(i in ds.stratum){
+for(i in ds.city){
   print(paste('Attributable risk:',i))
   
-  .ds <- daily.ds[stratum==i] # dataset for each unique value
+  .ds <- daily.ds[City==i] # dataset for each unique value
   .outcome <- .ds[,get(outcome.var)] # .define outcome
   
   # Predictions and reduction to lag-response at 1st (extreme cold) and 99th (extreme hot) percentiles with new centering (changes coef and vcov)
@@ -306,7 +306,7 @@ for(i in ds.stratum){
   
   # Compute attributable numbers with reduced coefficients, based on centering value
   .perc <-  exposure.by[i,] # all percentiles and related average exposure
-  .blups <- blups[[which(ds.stratum==i)]]
+  .blups <- blups[[which(ds.city==i)]]
   
   matsim[i,"Total"] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen)
   matsim[i,"Cold"] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
@@ -349,7 +349,7 @@ for(i in ds.stratum){
 ancitylow <- apply(arraysim,c(1,2),quantile,0.025)
 ancityhigh <- apply(arraysim,c(1,2),quantile,0.975)
 ancity <- matrix(paste0(round.fn(matsim),' (',round.fn(ancitylow),' to ',round.fn(ancityhigh),')'), ncol=length.sim) # insert comma every 3 digits, no rounding
-rownames(ancity) <- ds.stratum
+rownames(ancity) <- ds.city
 
 # Total attributable numbers
 antot <- colSums(matsim) # sum through strata
@@ -360,10 +360,10 @@ rownames(antotal) <- 'Total'
 colnames(ancity) <- sim.names # colnames
 
 # City and IO attributable numbers
-an_city <- .an_citylow <- .an_cityhigh <- matrix(NA, length.ds.stratum/2, length.sim, dimnames=list(sort(unique(daily.ds[,City])))) # matrix of NAs, AN for cities
+an_city <- .an_citylow <- .an_cityhigh <- matrix(NA, length.ds.city/2, length.sim, dimnames=list(sort(unique(daily.ds[,City])))) # matrix of NAs, AN for cities
 colnames(an_city) <- sim.names # colnames
 .an_city <- rowsum(matsim, as.integer(gl(nrow(matsim), 2, nrow(matsim)))) # sum every 2 rows for city AN
-for(i in 1:(length.ds.stratum/2)) { # for each city
+for(i in 1:(length.ds.city/2)) { # for each city
   .an_cityv <- colSums(arraysim[(i*2-1):(i*2),,]) # sum results within same city, still keeping all repetitions
   .an_citylow[i,] <- apply(.an_cityv,1,quantile,0.025) # lower quantile
   .an_cityhigh[i,] <- apply(.an_cityv,1,quantile,0.975) # upper quantile
@@ -371,10 +371,10 @@ for(i in 1:(length.ds.stratum/2)) { # for each city
 an_city <- matrix(paste0(round.fn(.an_city),' (',round.fn(.an_citylow),' to ',round.fn(.an_cityhigh),')'), ncol=length.sim) # combine for presentation
 rownames(an_city) <- rownames(.an_citylow) <- rownames(.an_cityhigh) <- sort(unique(daily.ds[,City])) # rownames
 
-an_io <- .an_iolow <- .an_iohigh <- matrix(NA, length.ds.stratum/length(unique(daily.ds[,City])), length.sim, dimnames=list(sort(unique(daily.ds[,outin])))) # matrix of NAs, AN for indoor/outdoor
-.an_io <- rowsum(matsim, rep(1:2,length.ds.stratum/2)) # sum every 2 rows for city AN
+an_io <- .an_iolow <- .an_iohigh <- matrix(NA, length.ds.city/length(unique(daily.ds[,City])), length.sim, dimnames=list(sort(unique(daily.ds[,outin])))) # matrix of NAs, AN for indoor/outdoor
+.an_io <- rowsum(matsim, rep(1:2,length.ds.city/2)) # sum every 2 rows for city AN
 for(i in 1:2) { # for each indoor/outdoor combination
-  .an_iov <- colSums(arraysim[seq(0,length.ds.stratum-2,by=2)+i,,]) # sum results for each indoor or outdoor, still keeping all repetitions
+  .an_iov <- colSums(arraysim[seq(0,length.ds.city-2,by=2)+i,,]) # sum results for each indoor or outdoor, still keeping all repetitions
   .an_iolow[i,] <- apply(.an_iov,1,quantile,0.025) # lower quantile
   .an_iohigh[i,] <- apply(.an_iov,1,quantile,0.975) # upper quantile
 }
@@ -398,7 +398,7 @@ afcit <- matsim/totclaims*100
 afcitylow <- ancitylow/totclaims*100
 afcityhigh <- ancityhigh/totclaims*100
 afcity <- matrix(paste0(round.fn(afcit, af.round),' (',round.fn(afcitylow, af.round),' to ',round.fn(afcityhigh, af.round),')'), ncol=length.sim)
-rownames(afcity) <- ds.stratum
+rownames(afcity) <- ds.city
 
 # Total
 aftot <- antot/totclaimtot*100
@@ -523,8 +523,8 @@ s2locations <- paste0(s2results,'Location level/')
 dir.create(paste0(s2results,'Location level')) # Warning if exists (doesn't replace)
 
 # Loop over each strata. Plots are individualised
-for(i in ds.stratum) {
-  .ds <- daily.ds[stratum==i] # dataset for each unique value
+for(i in ds.city) {
+  .ds <- daily.ds[City==i] # dataset for each unique value
   .name <- unique(.ds$stratum) # names with all of a, b and c together
   
   if (is.numeric(cenpercountry)) {
@@ -536,7 +536,7 @@ for(i in ds.stratum) {
   .argvar <- list(x=temps[[i]], fun=espline, knots=quantile(temps[[i]], eknots, na.rm=T))
   
   .bvar <- do.call(onebasis, .argvar)
-  .blups <- blups[[which(ds.stratum==i)]] # get correct blups
+  .blups <- blups[[which(ds.city==i)]] # get correct blups
   .pred2 <- crosspred(.bvar, coef=.blups$blup, vcov=.blups$vcov, model.link="log", by=0.1, cen=.cen) #  overall cumulative exposure-response relationship, for each percentile. Specific humidity fails at this step because of Error in seq.default(from = min(pretty), to = to, by = by) : 'from' must be a finite number
   
   .exposure.rr[[i]] <- data.frame(matrix(nrow=length(.pred2$predvar), ncol=4))
@@ -597,8 +597,8 @@ png(file = paste0(s2locations, 'zOverall e-rs.png'), res=350, width=1700, height
 layout(matrix(c(1:14,0),ncol=3,byrow=T))
 par(mfrow=c(5,3), mar=c(2.1,2.2,1,1.5), oma=c(0,0,0,0), mgp=c(1.5,0.4,0), las=1) # 4*4, space between borders and text
 
-for(i in ds.stratum) {
-  .ds <- daily.ds[stratum==i] # dataset for each unique value
+for(i in ds.city) {
+  .ds <- daily.ds[City==i] # dataset for each unique value
   .name <- unique(.ds$stratum) # names with all of a, b and c together
   # .name <- str_replace(str_replace(str_replace(str_replace(str_replace(str_replace(str_replace(str_replace(str_replace(.name, ',',''), 'Adelaide','Ade'), 'Brisbane','Bri'), 'Canberra','Can'), 'Darwin','Dar'), 'Hobart','Hob'), 'Melbourne','Mel'), 'Perth','Per'), 'Sydney','Syd')
   
@@ -611,7 +611,7 @@ for(i in ds.stratum) {
   .argvar <- list(x=temps[[i]], fun=espline, knots=quantile(temps[[i]], eknots, na.rm=T))
   
   .bvar <- do.call(onebasis, .argvar)
-  .blups <- blups[[which(ds.stratum==i)]] # get correct blups
+  .blups <- blups[[which(ds.city==i)]] # get correct blups
   .pred2 <- crosspred(.bvar, coef=.blups$blup, vcov=.blups$vcov, model.link="log", by=0.1, cen=.cen) #  overall cumulative exposure-response relationship, for each percentile. Specific humidity fails at this step because of Error in seq.default(from = min(pretty), to = to, by = by) : 'from' must be a finite number
   
   # Values above or below centering value (for red/blue colour)
@@ -671,17 +671,17 @@ write.csv(exposure.rr, file=paste0(s2locations, 'Exposure values RR.csv'), na=''
     # j <- 'City'
     mixv_j <- mixmeta(coef~1, vcov, random=~1|by.vars.ds[,get(j)], data=by.vars.ds) # BLUP will be conditionally dependent on random predictor. Usage of predictor like this identical to City (city results identical for both indoor and outdoor) or outorin (outorin results identical for all cities)
     if(j=='City') {
-      jstrat_no <- seq(0,length.ds.stratum-2,by=2)+1 # every odd number
-      ds.stratumj <- word(unique(ds.stratum))[jstrat_no] # new ds.stratum (technically
+      jstrat_no <- seq(0,length.ds.city-2,by=2)+1 # every odd number
+      ds.cityj <- word(unique(ds.city))[jstrat_no] # new ds.city (technically
     } else {
       jstrat_no <- c(1:2)
-      ds.stratumj <- word(unique(ds.stratum), start=-1L)[jstrat_no]
+      ds.cityj <- word(unique(ds.city), start=-1L)[jstrat_no]
     }
     blups_j <-  blup(mixv_j, vcov=T)[jstrat_no] # BLUPs for each j
     
     for(l in jstrat_no) { # repeat for each strata (city or out/in)
       m <- which(jstrat_no==l) # ordering of l, instead of l itself, which is needed for extracting blups
-      .name <- ds.stratumj[m] # get name for plot
+      .name <- ds.cityj[m] # get name for plot
       mvpred_jl <- list('fit'=blups_j[[m]][["blup"]], 'vcov'=blups_j[[m]][["vcov"]]) # predictions are blups, instead of entire mixmeta. give same names as predict.mixmeta
       exposure.jl.mean <- exposure.by[l,] # mean for relevant strata already prepared
       
@@ -741,17 +741,17 @@ write.csv(exposure.rr, file=paste0(s2locations, 'Exposure values RR.csv'), na=''
       # j <- 'City'
       mixv_j <- mixmeta(coef~1, vcov, random=~1|by.vars.ds[,get(j)], data=by.vars.ds) # BLUP will be conditionally dependent on random predictor. Usage of predictor like this identical to City (city results identical for both indoor and outdoor) or outorin (outorin results identical for all cities)
       if(j=='City') {
-        jstrat_no <- seq(0,length.ds.stratum-2,by=2)+1 # every odd number
-        ds.stratumj <- word(unique(ds.stratum))[jstrat_no] # new ds.stratum (technically
+        jstrat_no <- seq(0,length.ds.city-2,by=2)+1 # every odd number
+        ds.cityj <- word(unique(ds.city))[jstrat_no] # new ds.city (technically
       } else {
         jstrat_no <- c(1:2)
-        ds.stratumj <- word(unique(ds.stratum), start=-1L)[jstrat_no]
+        ds.cityj <- word(unique(ds.city), start=-1L)[jstrat_no]
       }
       blups_j <-  blup(mixv_j, vcov=T)[jstrat_no] # BLUPs for each j
       
       for(l in jstrat_no) { # repeat for each strata (city or out/in)
         m <- which(jstrat_no==l) # ordering of l, instead of l itself, which is needed for extracting blups
-        .name <- ds.stratumj[m] # get name for plot
+        .name <- ds.cityj[m] # get name for plot
         mvpred_jl <- list('fit'=blups_j[[m]][["blup"]], 'vcov'=blups_j[[m]][["vcov"]]) # predictions are blups, instead of entire mixmeta. give same names as predict.mixmeta
         exposure.jl.mean <- exposure.by[l,] # mean for relevant strata already prepared
         

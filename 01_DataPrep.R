@@ -26,21 +26,23 @@ library(pryr) # %<a-%
 
 
 
-# ##################################################
-# ### Prepare meteorological data and save as .rda file
-# ###   This step is already done for you and is commented out
-# ###   However, the code is included to demonstrate how the original data was extracted and edited
-# ##################################################
-# 
-# # # Source: Brambilla et al. 2022, Data in Brief, https://doi.org/10.1016/j.dib.2022.108291
-# # 
-# # ## Extract data
+##################################################
+### Prepare meteorological data and save as .rda file
+###   This step is already done for you and is commented out
+###   However, the code is included to demonstrate how the original data was extracted and edited
+##################################################
+
+# Source: Brambilla et al. 2022, Data in Brief, https://doi.org/10.1016/j.dib.2022.108291
+
+# ## Extract data
 # 
 # brambilla.loc <- paste0("your_directory_with_the_files") # Location of Brambilla et al. 2022 Appendix 1 Climate_files
 # brambilla.loc <- paste0("/Users/MatthewBorg/Library/CloudStorage/Box-Box/Data original/Brambilla 2022/Appendix 1/Climate_files/") # Location of Brambilla et al. 2022 Appendix 1 Climate_files
+# brambilla.loc <- paste0("C:/Users/a1210385/Box/Data original/Brambilla 2022/Appendix 1/Climate_files/") # Location of Brambilla et al. 2022 Appendix 1 Climate_files
+# 
 # brambilla.data <- list() # Save data in list
 # for(a in c('Melbourne','Sydney')) {
-#   for(b in 21:25) { # 2021-2015
+#   for(b in 1:30) { # 1991-2020, one b per year. This forms a 30-year period for the EHF reference threshold
 #     if (a=='Sydney') {brambilla.data[[paste0(a,b)]] <- cbind('City'=a, 'Year'=b+1990, read_excel(paste0(brambilla.loc,'5_Sydney_Climatedata.xlsx'), sheet=b)[c(1:6,8:10)])}
 #     else if (a=='Melbourne') {brambilla.data[[paste0(a,b)]] <- cbind('City'=a, 'Year'=b+1990, read_excel(paste0(brambilla.loc,'6_Melbourne_Climatedata.xlsx'), sheet=b)[c(1:6,8:10)])}
 #   }
@@ -58,57 +60,53 @@ library(pryr) # %<a-%
 # ## Obtain daily metrics at time of maximum temperature using BoM classification
 # brambilla[,predate:=ISOdate(Year, Month, Day, Hour)] # Date
 # brambilla[,Date:=as.Date(predate-9*3600+1)] # Bureau of Meteorology (BoM) measuring period for maximum temperature is 9am on same day to 9am next day
-# brambilla.max <- setDT(brambilla)[Date!='2010-12-31', .SD[which.max(temp)], by=c('Date','City')] # Metrics at time of maximum temperature
+# brambilla.max <- setDT(brambilla)[Date!='1990-12-31', .SD[which.max(temp)], by=c('Date','City')] # Metrics at time of maximum temperature
 # brambilla[,Date:=as.Date(predate+15*3600-1)] # Bureau of Meteorology (BoM) measuring period for maximum temperature is 9am on previous day to 9am same day
-# brambilla.min <- setDT(brambilla)[Date!='2010-12-31', .SD[which.max(temp)], by=c('Date','City')] # Metrics at time of minimum temperature
+# brambilla.min <- setDT(brambilla)[Date!='1990-12-31', .SD[which.max(temp)], by=c('Date','City')] # Metrics at time of minimum temperature
 # brambilla.max[,':='(Year=NULL,Month=NULL,Day=NULL,Hour=NULL,predate=NULL)] # Removing unneeded variables calculation, retaining humidity metrics for sensitivity analyses and components of WBGT
 # brambilla.min[,':='(Year=NULL,Month=NULL,Day=NULL,Hour=NULL,predate=NULL)] # Removing unneeded variables calculation, retaining humidity metrics for sensitivity analyses and components of WBGT
 # 
 # ### Combine max and min
 # brambilla.all <- merge(brambilla.max, brambilla.min, by=c('Date','City'), all=T, suffixes = c(".max",".min"))
-# 
-# 
-# ### Save meteorolgical dataset
-# save(brambilla.all, file='brambilla.all.rda')
-# load('brambilla.all.rda')
+# brambilla.all[,rh.ave := rh.max*rh.min/2] # Average relative humidity for supplementary analysis
 # 
 # 
 # 
 # ##################################################
 # ### EHF
-# ################################################## 
+# ##################################################
 # 
 # ### EHF variables
 # ## Use City == shift(City, -x) to ensure that same city is used, but this misses x rows based on date and lag (start, Adelaide) /lead (end, Sydney)
 # setorder(brambilla.all, City, Date)
 # brambilla.all[City == shift(City, -1) , ':='(temp.min_lead=shift(temp.min,-1), min_hi_lead=shift(hi.min,-1))] # EHF uses min T from same day
-# brambilla.all <- brambilla.all[Date < '2015-12-31',] # now that min_lead is calculated, remove the last day of the study period, as it lacks enough data to be calculated for max T
+# brambilla.all <- brambilla.all[Date < '2020-12-31',] # now that min_lead is calculated, remove the last day of the study period, as it lacks enough data to be calculated for max T
 # brambilla.all[, temp_ehf := rowMeans(.SD), .SDcols = c("temp.max","temp.min_lead")]
 # brambilla.all[, hi_ehf := rowMeans(.SD), .SDcols = c("hi.max","min_hi_lead")]
 # 
 # for(i in unique(brambilla.all$City)) {
-#   brambilla.all[City==i, dmt3 := rollmean(temp_ehf, 3, fill=NA, align='right')] # above misses 2 Adelaide dates that it shouldn't, which this addresses
+#   brambilla.all[City==i, dmt3 := rollmean(temp_ehf, 3, fill=NA, align='right')]
 #   brambilla.all[City==i, dmtp30 := (shift(temp_ehf,1+2) + shift(temp_ehf,2+2) + shift(temp_ehf,3+2) + shift(temp_ehf,4+2) + shift(temp_ehf,5+2)
 #                                 + shift(temp_ehf,6+2) + shift(temp_ehf,7+2) + shift(temp_ehf,8+2) + shift(temp_ehf,9+2) + shift(temp_ehf,10+2)
 #                                 + shift(temp_ehf,11+2) + shift(temp_ehf,12+2) + shift(temp_ehf,13+2) + shift(temp_ehf,14+2) + shift(temp_ehf,15+2)
 #                                 + shift(temp_ehf,16+2) + shift(temp_ehf,17+2) + shift(temp_ehf,18+2) + shift(temp_ehf,19+2) + shift(temp_ehf,20+2)
 #                                 + shift(temp_ehf,21+2) + shift(temp_ehf,22+2) + shift(temp_ehf,23+2) + shift(temp_ehf,24+2) + shift(temp_ehf,25+2)
 #                                 + shift(temp_ehf,26+2) + shift(temp_ehf,27+2) + shift(temp_ehf,28+2) + shift(temp_ehf,29+2) + shift(temp_ehf,30+2))/30] # retrospective (with +2)
-#   brambilla.all[City==i, dmt3f := rollmean(temp_ehf, 3, fill=NA, align='left')] # above misses 2 Adelaide dates that it shouldn't, which this addresses
+#   brambilla.all[City==i, dmt3f := rollmean(temp_ehf, 3, fill=NA, align='left')]
 #   brambilla.all[City==i, dmtp30f := (shift(temp_ehf,1) + shift(temp_ehf,2) + shift(temp_ehf,3) + shift(temp_ehf,4) + shift(temp_ehf,5)
 #                                  + shift(temp_ehf,6) + shift(temp_ehf,7) + shift(temp_ehf,8) + shift(temp_ehf,9) + shift(temp_ehf,10)
 #                                  + shift(temp_ehf,11) + shift(temp_ehf,12) + shift(temp_ehf,13) + shift(temp_ehf,14) + shift(temp_ehf,15)
 #                                  + shift(temp_ehf,16) + shift(temp_ehf,17) + shift(temp_ehf,18) + shift(temp_ehf,19) + shift(temp_ehf,20)
 #                                  + shift(temp_ehf,21) + shift(temp_ehf,22) + shift(temp_ehf,23) + shift(temp_ehf,24) + shift(temp_ehf,25)
 #                                  + shift(temp_ehf,26) + shift(temp_ehf,27) + shift(temp_ehf,28) + shift(temp_ehf,29) + shift(temp_ehf,30))/30] # retrospective (with +2)
-#   brambilla.all[City==i, dmhi3 := rollmean(hi_ehf, 3, fill=NA, align='right')] # above misses 2 Adelaide dates that it shouldn't, which this addresses
+#   brambilla.all[City==i, dmhi3 := rollmean(hi_ehf, 3, fill=NA, align='right')]
 #   brambilla.all[City==i, dmhip30 := (shift(hi_ehf,1+2) + shift(hi_ehf,2+2) + shift(hi_ehf,3+2) + shift(hi_ehf,4+2) + shift(hi_ehf,5+2)
 #                                  + shift(hi_ehf,6+2) + shift(hi_ehf,7+2) + shift(hi_ehf,8+2) + shift(hi_ehf,9+2) + shift(hi_ehf,10+2)
 #                                  + shift(hi_ehf,11+2) + shift(hi_ehf,12+2) + shift(hi_ehf,13+2) + shift(hi_ehf,14+2) + shift(hi_ehf,15+2)
 #                                  + shift(hi_ehf,16+2) + shift(hi_ehf,17+2) + shift(hi_ehf,18+2) + shift(hi_ehf,19+2) + shift(hi_ehf,20+2)
 #                                  + shift(hi_ehf,21+2) + shift(hi_ehf,22+2) + shift(hi_ehf,23+2) + shift(hi_ehf,24+2) + shift(hi_ehf,25+2)
 #                                  + shift(hi_ehf,26+2) + shift(hi_ehf,27+2) + shift(hi_ehf,28+2) + shift(hi_ehf,29+2) + shift(hi_ehf,30+2))/30] # retrospective (with +2)
-#   brambilla.all[City==i, dmhi3f := rollmean(hi_ehf, 3, fill=NA, align='left')] # above misses 2 Adelaide dates that it shouldn't, which this addresses
+#   brambilla.all[City==i, dmhi3f := rollmean(hi_ehf, 3, fill=NA, align='left')]
 #   brambilla.all[City==i, dmhip30f := (shift(hi_ehf,1) + shift(hi_ehf,2) + shift(hi_ehf,3) + shift(hi_ehf,4) + shift(hi_ehf,5)
 #                                   + shift(hi_ehf,6) + shift(hi_ehf,7) + shift(hi_ehf,8) + shift(hi_ehf,9) + shift(hi_ehf,10)
 #                                   + shift(hi_ehf,11) + shift(hi_ehf,12) + shift(hi_ehf,13) + shift(hi_ehf,14) + shift(hi_ehf,15)
@@ -137,20 +135,21 @@ library(pryr) # %<a-%
 # ### Save
 # save(brambilla.all, brambilla_ehfr, file='brambilla.all.rda')
 
-  
+load(file='brambilla.all.rda') # Climate data
+
 
 ##################################################
 ### Create simulated claims data
 ##################################################
 
 # Stratum variables
-ds.stratum <- sort(unique(c('Melbourne','Sydney'))) # 2 cities (Melbourne and Sydney)
-length.ds.stratum <- length(ds.stratum) # Number of cities
+ds.city <- sort(unique(c('Melbourne','Sydney'))) # 2 cities (Melbourne and Sydney)
+length.ds.city <- length(ds.city) # Number of cities
 
 ## Create randomly-generated claims data with Poisson and Tweedie assumed distributions for number of OIIs (claims) and total costs, respectively
 ## This simulated data has no relationship to any predictor variables
-dates <- rep(seq(min(brambilla.all[,Date]), max(brambilla.all[,Date]), 1),each=no.models)
-ldates <- length(dates)/length.ds.stratum
+dates <- rep(seq(min(brambilla.all[,Date]), max(brambilla.all[,Date]), 1),each=length.ds.city)
+ldates <- length(dates)/length.ds.city
 set.seed(3) # for random distributions
 claims <- data.table(
   Date = dates,
@@ -181,7 +180,6 @@ public.holidays[, Date:=as.Date(Date)]
 ### Merge data sets together
 ##################################################
 
-load(file='brambilla.all.rda') # Climate data
 load(file='school.holidays.rda')
 load(file='pop.rda') # Worker's population using ABS data. Due to estimating indoor/outdoor proportions, n can have decimal places
 
@@ -195,6 +193,24 @@ daily[is.na(phol), phol := 0] # Replace NA in public holidays with 0
 daily[, ':='(Year=year(Date), Month=month(Date), Day=day(Date), dow=weekdays(Date))]
 pop <- pop[, lapply(.SD, sum, na.rm=T), by=mget(by.vars1), .SDcols = c("n","fulltime","parttime")] # combine Indoors and Outdoos
 daily.ds <- merge(daily, pop, by=c("Year","Month","City"), all.x=T)
+
+
+
+##################################################
+### Rename climate variables
+##################################################
+
+exposure.old <- c('temp.max','temp.min',
+                  'rh.max','rh.min','rh.ave',
+                  'hi.max','hi.min',
+                  'ehf','ehff',
+                  'ehf.hi','ehff.hi')
+exposure.new <- c("Maximum temperature","Minimum temperature",
+                  'Maximum relative humidity','Minimum relative humidity','Average relative humidity',
+                  'Maximum heat index','Minimum heat index',
+                  'Excess heat factor','Excess heat factor (forward)',
+                  'Excess heat index factor','Excess heat index factor (forward)')
+setnames(daily.ds, old=exposure.old, new=exposure.new)  # rename exposures
 
 
 
