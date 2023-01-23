@@ -140,8 +140,8 @@ exposure <- matrix(NA, length.ds.city, 4 + length(predper.short), dimnames=list(
 exposure.by <- matrix(NA, length.ds.city, length(predper), dimnames=list(ds.city, predper))
 
 # EHF. Heatwave if >0, though as a continuous variable, they are essentially identical
-exposure_ehf <- matrix(NA, length.ds.stratum, 4, dimnames=list(ds.stratum, c('Heatwave','Severe','Extreme','Exorbitant'))) # matrix of NAs, with a column to denote total number of outcomes
-ehf_threshold <- matrix(NA, length.ds.stratum, 4, dimnames=list(ds.stratum, c('Heatwave','Severe','Extreme','Exorbitant'))) # matrix of NAs, with a column to denote total number of outcomes
+exposure_ehf <- matrix(NA, length.ds.city, 4, dimnames=list(ds.city, c('Heatwave','Severe','Extreme','Exorbitant'))) # matrix of NAs, with a column to denote total number of outcomes
+ehf_threshold <- matrix(NA, length.ds.city, 4, dimnames=list(ds.city, c('Heatwave','Severe','Extreme','Exorbitant'))) # matrix of NAs, with a column to denote total number of outcomes
 
 # Coefficients for overall cumulative summary
 if(espline=='bs') {
@@ -230,7 +230,7 @@ for(i in ds.city) {
       model[[i]] <- glm(as.formula(mformula), family=tweedie(var.power=m.tweedie.shape[i,], link.power=0), .ds, na.action="na.omit", control=list(maxit=max.iter)) # "na.exclude". na.omit works better for Tweedie e.g. AIC calculation
       # model.omit[[i]] <- glm(as.formula(mformula), family=tweedie(var.power=m.tweedie.shape[i,], link.power=0), .ds, na.action="na.omit", control=list(maxit=max.iter)) # NAs will cause tweedie AIC calculation to fail 
     } else {
-      model[[i]] <- glm(as.formula(mformula), family=distribution, .ds, na.action="na.exclude", control=list(maxit=max.iter))
+      model[[i]] <- glm(as.formula(mformula), family=distribution, .d, na.action="na.exclude", control=list(maxit=max.iter))
     }
     
     # GLM SE, t-values, P-values and R^2
@@ -258,7 +258,7 @@ for(i in ds.city) {
   
   if(distribution[1]=='quasipoisson') { #[1] is to avoid warnings from using multiple elements
     if(modeltype %in% c('a','gam','GAM')) {
-      m.aic[i,] <- fqaic.fn(model[[i]], gam=T) # if gam, use gam option. CURRENTLY REULSTS IN INF. Not sure (I suspect not) if it applies corrected AIC, but also not sure if GAM AIC works on it
+      m.aic[i,] <- fqaic.fn(model[[i]], gam=T) # if gam, use gam option
     } else {
       m.aic[i,] <- fqaic.fn(model[[i]])
     } 
@@ -332,35 +332,20 @@ proc.time()[3]-time
 # Combine and review results of Stage 1 Analysis
 ################################################################################
 
-# Combine number of outcomes (OIIs and days with data), DLNM coefficients, AIC and dispersion parameter, including totals for outcomes and AIC
-m1.results <- rbind(cbind(no.oii, no.outcome, coef, m.aic, m.r2, m.devexp, m.dispersion), c(sum(no.oii),sum(no.outcome),rep(NA, ncol(coef)),sum(m.aic), rep(NA,3)))
-colnames(m1.results) <- c('n','Number of days with outcome',colnames(coef),'AIC','R^2','Deviance explained','Dispersion parameter')
-write.csv(m1.results, file=paste0(outcome.exposure.loc.s1,'Outcome, coefficients and model fit.csv'), na='', row.names=T) # create csv file
-save(m1.results, file=paste0(outcome.exposure.loc.s1,'Outcome, coefficients and model fit.rda')) # save dataset for easier access
-write.csv(sum(m.aic), file=paste0(outcome.exposure.loc.s1,'Total AIC.csv'), na='', row.names=T)
-write.csv(sum(no.oii), file=paste0(outcome.exposure.loc.s1,'Total OII.csv'), na='', row.names=T)
+# Combine number of outcomes, DLNM coefficients, AIC and dispersion parameter, including totals for outcomes and AIC
+m1.results <- rbind(cbind(no.outcome, coef, m.aic,  m.dispersion), c(sum(no.outcome),rep(NA, ncol(coef)),sum(m.aic), NA))
+colnames(m1.results) <- c('Number of outcomes',colnames(coef),'AIC','Dispersion parameter')
+write.csv(m1.results, file=paste0(s1results,'Reduced coef and model fit.csv'), na='', row.names=T) # output AIC per model and its sum
 
 # Output model coefficients and RRs
-write.csv(do.call(rbind, m.coef), file=paste0(outcome.exposure.loc.s1,'Coefficients.csv'), na='') # Model coefficients, SE, 95% CI and t-tests
-
-# Modelling against residuals. Not output varies
-check.res.coef.s <- check.res.coef.sig %>% purrr::reduce(full_join, by = "Coefficient") # p-values only, next to each other
-check.res.coef.f <- do.call(rbind, check.res.coef) # all measurements, arranged vertically
-write.csv(check.res.coef.s, file=paste0(outcome.exposure.loc.s1.mcheck,'zLM residuals with covariates.csv'), na='', row.names=F)
-write.csv(check.res.coef.f, file=paste0(outcome.exposure.loc.s1.mcheck,'zLM residuals with covariatesf.csv'), na='', row.names=F) # f short for full
-
-# Collinearity or GAM specific checks
-if(modeltype %in% c('a','gam','GAM')) {
-  write.csv(gam.k, file=paste0(outcome.exposure.loc.s1,'k-index.csv'), na='', row.names=T) # create csv file
-  write.csv(do.call(rbind, gam.concurvity), file=paste0(outcome.exposure.loc.s1,'Concurvity.csv'), na='', row.names=F)
-} else {
-  write.csv(do.call(rbind, collin), file=paste0(outcome.exposure.loc.s1,'Collinearity.csv'), na='', row.names=F)
-}
+write.csv(do.call(rbind, m.coef), file=paste0(s1results,'Coefficients.csv'), na='') # Model coefficients, SE, 95% CI and t-tests
+# do.call(rbind, m.coef)[str_detect(parameter,'day1')] 
 
 # Tweedie shape parameters
 if (distribution[1]=='Tweedie') { 
-  write.csv(m.tweedie.shape, file=paste0(outcome.exposure.loc.s1,'Tweedie shape parameters.csv'), na='', row.names=T)
+  write.csv(m.tweedie.shape, file=paste0(s1results,'Tweedie shape parameters.csv'), na='', row.names=T)
 } 
+
 
 
 ######################### END ############################
