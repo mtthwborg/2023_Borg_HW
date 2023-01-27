@@ -3,24 +3,6 @@
 ### Multivariate meta-analysis functions
 ##################################################
 
-## Perform Wald test with mixmeta or mvmeta object
-## fwald2 from Gasparrini et al. 2015 Lancet with additional "short" option (if T, also outputs Wald statistic and df)
-fwald2.fn <- function(model, var, short=F) {
-  ind <- grep(var,names(coef(model)))
-  coef <- coef(model)[ind]
-  vcov <- vcov(model)[ind,ind]
-  waldstat <- coef%*%solve(vcov)%*%coef
-  df <- length(coef)
-  p <- 1-pchisq(waldstat,df)
-  if(isTRUE(short)) { # return p-value only
-    return(p)
-  } else { # return statistic, df and p-value
-    results <- c(waldstat,df,p)
-    names(results) <- c('Wald statistic','df','p-value')
-    return(results)
-  }
-}
-
 
 ## Report mixmeta Cochran Q test, I^2 and AIC statistics from a mixmeta or mvmeta object (mv.)
 mv.results.fn <- function(mv.) {
