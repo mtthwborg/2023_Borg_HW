@@ -45,7 +45,7 @@ trend <- paste0("ns(Date,",mdf,"*.no.years)")
 trend.gam <- paste0("s(date,bs='cr',k=",mdf,"*.no.years,fx=T)") # If use "s(", MUST include "bs=" even if default tp, as later code requires detecting "bs="
 
 ## Base formula. Must include ".outcome ~ .cb" which are coded to be the outcome variable and crossbasis (with exposure variable and lag) respectively
-m.formula <- paste0('.outcome ~ .cb + Tue+Wed+Thu+Fri+Sat+Sun +Sat*public.hol + Sun:public.hol + month + offset(log(n)) + Sat*school.hols + Sun:school.hols + Sat*day1 + Sun:day1 + shol +')
+m.formula <- paste0('.outcome ~ .cb + Tue+Wed+Thu+Fri+Sat+Sun + Sat*public.hol + Sun*public.hol + offset(log(n)) + Sat*school.hols + Sun:school.hols + Sat*day1 + Sun:day1 + shol + ') # relative humidity as projected data has that variable
 
 
 ## Distribution choice. auto is quasipoisson for OIIs, Tweedie for costs. auto uses quasipoisson instead of Poisson. Can be set to a distribution of your choice to force said distirbution (if it exists)
@@ -60,7 +60,8 @@ distribution.choice <- 'auto' # 'auto' 'quasipoisson' 'Tweedie' # if use costs w
 ## Centering percentile
 # cenpen <- NULL # Default, use minimum OII percentile
 # cenpen <- 50 # Median
-cenpen <- 'mean' # 'mean'
+# cenpen <- 'mean' # Mean
+cenpen <- 'ehf' # Centre on 0, as per EHF
 cenpen.minmax <- c(10,90) # max and min value for cenpen. Ignored if cenpen set manually # c(10,90) # c(25,75)
 
 
@@ -99,7 +100,7 @@ oer.yaxis <- seq(0.9,1.5,by=0.1)
 ##################################################
 
 dir.create('Results') # Create folder to store results
-source('functions.R') # Calculate qAIC
+source('functions.R') # Functions for analysis
 
 time <- proc.time()[3] # Record time
 for (outcome.var in c('Number of OIIs',"Total costs","Costs per OII")) { # Loop analysis for the two main outcome variables and also costs per OII

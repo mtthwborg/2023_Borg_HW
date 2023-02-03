@@ -1,48 +1,13 @@
 
 ##################################################
-### Multivariate meta-analysis functions
-##################################################
-
-
-## Report mixmeta Cochran Q test, I^2 and AIC statistics from a mixmeta or mvmeta object (mv.)
-mv.results.fn <- function(mv.) {
-  sum.mv.q <- summary(mv.)[["qstat"]] # Q-stat values. Can also get with qtest()
-  .vars <- attr(mv.[['terms']],"term.labels") # fixed variables
-  if(identical(.vars,character(0))) { # if no fixed predictors
-    .vars.wald <- NULL
-  } else {
-    .vars.wald <- c(sapply(.vars, function(w) fwald2.fn(mv., w))) # results from multivariate Wald test
-    names(.vars.wald) <- paste(rep(.vars, each=3), c('W','df','p'), sep = ".")
-  }
-  .mv.results <- c('Q-statistic'=sum.mv.q$Q[1], 'df'=sum.mv.q$df[1], 'P-value'=sum.mv.q$pvalue[1], 'I^2'=summary(mv.)[["i2stat"]][1], 'AIC'=AIC(mv.), .vars.wald)
-  names(.mv.results) <- str_remove_all(names(.mv.results), '..all') # remove ..all  from mixmeta code
-  return(.mv.results) # return combined results
-}
-
-
-## Wrap format() around round(). Enables more control over presentation of rounded results. Converts results to character
-# round.fn <- function(x, digits=0) {format(round(x, digits), nsmall=digits, trim=T)}
-round.fn <- function(x, round=0,trim=T,big.mark=",",significant=NULL, justify=c("left","right","centre","none"),width=NULL,na.encode=T,scientific=NA,big.interval=3L,small.mark="",small.interval=5L,decimal.mark=getOption("OutDec"),zero.print=NULL,drop0trailing=F,...) {
-  .x <- round(x, digits=round)
-  .x <- format(.x, nsmall=round, trim=trim, big.mark=big.mark, digits=significant,justify=justify,width=width,na.encode=na.encode,scientific=scientific,big.interval=big.interval,small.mark=small.mark,small.interval=small.interval,decimal.mark=decimal.mark,zero.print=zero.print,drop0trailing=drop0trailing,...)
-  return(.x)
-}
-
-
-
-##################################################
 ### Meta-analysis: results of reduced coef and compute BLUPS (best linear unbiased prediction)
 ##################################################
 
 exposure.country.mean <- colMeans(exposure.by) # could arguably weight by area number of years (study frame), but Gasaparrini didn't do this either and impact likely negligible
 
-## Calculate potential meta-analysis predictors 
-exposure.mean <- exposure[,1] # mean exposure
-mm.pred.m <- matrix(rep(1,length.ds.city), nrow=length.ds.city, dimnames=list(ds.city,'1'))
-by.vars.ds <- cbind(unique(daily.ds[,City]), mm.pred.m) # data frame with categories and mixmeta.predictors
-
 ## Meta-analysis. Default methods is REML
-mv <- mixmeta(coef~1, vcov, data=by.vars.ds)
+exposure.mean <- exposure[,1] # mean exposure
+mv <- mixmeta(coef~1, vcov)
 mv.results <- mv.results.fn(mv) 
 write.csv(mv.results, file=paste0(s2results, 'MM tests.csv'), na='', row.names=T) # create csv file
 
@@ -100,10 +65,14 @@ if (is.null(cenpen)) {
   cenpercountry <- cenpen # use defined centering value
 } else if(cenpen %in% c('mean','Mean','average','Average')) {
   cenpercountry <- 'mean' # to be used as code for mean
-} 
+} else if(cenpen=='ehf') {
+  cenpercountry <- 'ehf' # to be used as code for mean
+}
 
 if(is.numeric(cenpercountry)) {
   centre <- exposure.country.mean[paste0(cenpercountry)] # centered prediction (from corresponding percentile)
+} else if(cenpercountry=='ehf') {
+  centre <- 0 # centred on 0
 } else {
   centre <- sum(sapply(temps, sum)) / sum(sapply(temps, length)) # mean exposure across all strata
 }
@@ -120,9 +89,9 @@ cp <- crosspred(bvar, coef=mvpred$fit, vcov=mvpred$vcov, model.link="log", at=ex
 # Objects to store overall cumulative exposure results (lag-response association at set percentiles vs centering value)
 cvlag.length <- length(crossreduce(.cb, model=model[[i]], "var", value=exposure.by[1,'1'], cen=.cen, model.link='log')$coefficients) # only interested in length, uses last cb from S1 but that is irrelevant
 
-coeflag1 <- coeflag2<- coeflag10 <- coeflag25 <- coeflag50 <- coeflag75 <- coeflag90<- coeflag975 <- coeflag99 <- matrix(NA, length.ds.city, cvlag.length, dimnames=list(ds.city)) # not really sure why columns is 3. I though 8 was for columns for lag 0 + each lag day. CHANGED WHEN I INCREASED PARAMETES FROM edf TO edf + 1
-cpmodel <- vcovlag1 <- vcovlag2 <- vcovlag10 <- vcovlag25 <- vcovlag50 <- vcovlag75 <- vcovlag90 <- vcovlag975 <- vcovlag99 <- vector("list", length.ds.city)
-names(cpmodel)<-names(vcovlag1)<-names(vcovlag2)<-names(vcovlag10)<-names(vcovlag25)<-names(vcovlag50)<-names(vcovlag75)<-names(vcovlag90)<-names(vcovlag975)<-names(vcovlag99) <- ds.city
+coeflag_ehf1 <- coeflag_ehf2 <- matrix(NA, length.ds.city, cvlag.length, dimnames=list(ds.city)) # not really sure why columns is 3. I though 8 was for columns for lag 0 + each lag day. CHANGED WHEN I INCREASED PARAMETES FROM edf TO edf + 1
+cpmodel <- vcovlag_ehf1 <- vcovlag_ehf2 <- vector("list", length.ds.city)
+names(cpmodel) <- names(vcovlag_ehf1) <- names(vcovlag_ehf2) <- ds.city
 
 # Run model for each by.vars with re-centered values to obtain lag-reponse relationship at the 1st and 99th percentile
 
@@ -146,84 +115,33 @@ for(i in ds.city) {
     .cen <- exposure.mean[i] # mean
   }
   
-  # Predictions and reduction to lag-response at set percentiles. Requires centering required as it changes coef-vcov
-  .perc <-  exposure.by[i,] # all relevant percentiles per i
-  # 1st percentile
-  redlag1 <- crossreduce(.cb, model=model[[i]], "var", value=.perc['1'], cen=.cen, model.link='log')
-  coeflag1[i,] <- coef(redlag1)
-  vcovlag1[[i]] <- vcov(redlag1)
-  # 2.5th percentile
-  redlag2 <- crossreduce(.cb, model=model[[i]], "var", value=.perc['2.5'], cen=.cen, model.link='log')
-  coeflag2[i,] <- coef(redlag2)
-  vcovlag2[[i]] <- vcov(redlag2)
-  # 10th percentile
-  redlag10 <- crossreduce(.cb, model=model[[i]], "var", value=.perc['10'], cen=.cen, model.link='log')
-  coeflag10[i,] <- coef(redlag10)
-  vcovlag10[[i]] <- vcov(redlag10)
-  # 25th percentile
-  redlag25 <- crossreduce(.cb, model=model[[i]], "var", value=.perc['25'], cen=.cen, model.link='log')
-  coeflag25[i,] <- coef(redlag25)
-  vcovlag25[[i]] <- vcov(redlag25)
-  # 50th percentile
-  redlag50 <- crossreduce(.cb, model=model[[i]], "var", value=.perc['50'], cen=.cen, model.link='log')
-  coeflag50[i,] <- coef(redlag50)
-  vcovlag50[[i]] <- vcov(redlag50)
-  # 75th percentile
-  redlag75 <- crossreduce(.cb, model=model[[i]], "var", value=.perc['75'], cen=.cen, model.link='log')
-  coeflag75[i,] <- coef(redlag75)
-  vcovlag75[[i]] <- vcov(redlag75)
-  # 90th percentile
-  redlag90 <- crossreduce(.cb, model=model[[i]], "var", value=.perc['90'], cen=.cen, model.link='log')
-  coeflag90[i,] <- coef(redlag90)
-  vcovlag90[[i]] <- vcov(redlag90)
-  # 97.5th percentile
-  redlag975 <- crossreduce(.cb, model=model[[i]], "var", value=.perc['97.5'], cen=.cen, model.link='log') 
-  coeflag975[i,] <- coef(redlag975)
-  vcovlag975[[i]] <- vcov(redlag975)
-  # 99th percentile
-  redlag99 <- crossreduce(.cb, model=model[[i]], "var", value=.perc['99'], cen=.cen, model.link='log') 
-  coeflag99[i,] <- coef(redlag99)
-  vcovlag99[[i]] <- vcov(redlag99)
+  # Predictions and reduction to lag-response at set percentiles. Centering required as it changes coef-vcov
+  .perc <-  exposure.by[i,] 
+  
+  # Severe heatwave threshold
+  redlag_ehf1 <- crossreduce(.cb, model=model[[i]], "var", value=exposure_ehf[i,2], cen=.cen, model.link='log')
+  coeflag_ehf1[i,] <- coef(redlag_ehf1)
+  vcovlag_ehf1[[i]] <- vcov(redlag_ehf1)
+  # Extreme (>=2*EHF85) heatwave threshold
+  redlag_ehf2 <- crossreduce(.cb, model=model[[i]], "var", value=exposure_ehf[i,3], cen=.cen, model.link='log')
+  coeflag_ehf2[i,] <- coef(redlag_ehf2)
+  vcovlag_ehf2[[i]] <- vcov(redlag_ehf2)
 }
 
-
-
 # Run meta-analysis with lag models 
-mvlag1 <- mixmeta(coeflag1~1, vcovlag1, data=list(ds.city)) 
-mvlag2 <- mixmeta(coeflag2~1, vcovlag2, data=list(ds.city))
-mvlag10 <- mixmeta(coeflag10~1, vcovlag10, data=list(ds.city)) 
-mvlag25 <- mixmeta(coeflag25~1, vcovlag25, data=list(ds.city))
-mvlag50 <- mixmeta(coeflag50~1, vcovlag50, data=list(ds.city))
-mvlag75 <- mixmeta(coeflag75~1, vcovlag75, data=list(ds.city)) 
-mvlag90 <- mixmeta(coeflag90~1, vcovlag90, data=list(ds.city))
-mvlag975 <- mixmeta(coeflag975~1, vcovlag975, data=list(ds.city)) 
-mvlag99 <- mixmeta(coeflag99~1, vcovlag99, data=list(ds.city))
-# for(p in c(1,2.5,10,25,50,75,90,97.5,99))
+mvlag_ehf1 <- mixmeta(coeflag_ehf1~1, vcovlag_ehf1, data=list(ds.city))
+mvlag_ehf2 <- mixmeta(coeflag_ehf2~1, vcovlag_ehf2, data=list(ds.city)) 
 
 # Predict pooled coefficients
-mvpredlag1 <- predict(mvlag1,datanew,vcov=T,format="list")
-mvpredlag2 <- predict(mvlag2,datanew,vcov=T,format="list")
-mvpredlag10 <- predict(mvlag10,datanew,vcov=T,format="list")
-mvpredlag25 <- predict(mvlag25,datanew,vcov=T,format="list")
-mvpredlag50 <- predict(mvlag50,datanew,vcov=T,format="list")
-mvpredlag75 <- predict(mvlag75,datanew,vcov=T,format="list")
-mvpredlag90 <- predict(mvlag90,datanew,vcov=T,format="list")
-mvpredlag975 <- predict(mvlag975,datanew,vcov=T,format="list")
-mvpredlag99 <- predict(mvlag99,datanew,vcov=T,format="list")
+mvpredlag_ehf1 <- predict(mvlag_ehf1,datanew,vcov=T,format="list")
+mvpredlag_ehf2 <- predict(mvlag_ehf2,datanew,vcov=T,format="list")
 
 # Obtain predictions for lag 0 to "lmax"
 blag <- do.call(onebasis,c(list(x=seq(0,lmax)),attr(.cb,"arglag"))) # uses CB attributes (same for all by.vars)
 
 # Predict pooled lag-response associations for heat and cold
-cplag1 <- crosspred(blag,coef=mvpredlag1$fit,vcov=mvpredlag1$vcov, model.link="log", at=0:lmax)
-cplag2 <- crosspred(blag,coef=mvpredlag2$fit,vcov=mvpredlag2$vcov, model.link="log", at=0:lmax)
-cplag10 <- crosspred(blag,coef=mvpredlag10$fit,vcov=mvpredlag10$vcov, model.link="log", at=0:lmax)
-cplag25 <- crosspred(blag,coef=mvpredlag25$fit,vcov=mvpredlag25$vcov, model.link="log", at=0:lmax)
-cplag50 <- crosspred(blag,coef=mvpredlag50$fit,vcov=mvpredlag50$vcov, model.link="log", at=0:lmax)
-cplag75 <- crosspred(blag,coef=mvpredlag75$fit,vcov=mvpredlag75$vcov, model.link="log", at=0:lmax)
-cplag90 <- crosspred(blag,coef=mvpredlag90$fit,vcov=mvpredlag90$vcov, model.link="log", at=0:lmax)
-cplag975 <- crosspred(blag,coef=mvpredlag975$fit,vcov=mvpredlag975$vcov, model.link="log", at=0:lmax)
-cplag99 <- crosspred(blag,coef=mvpredlag99$fit,vcov=mvpredlag99$vcov, model.link="log", at=0:lmax)
+cplag_ehf1 <- crosspred(blag,coef=mvpredlag_ehf1$fit,vcov=mvpredlag_ehf1$vcov, model.link="log", at=0:lmax)
+cplag_ehf2 <- crosspred(blag,coef=mvpredlag_ehf2$fit,vcov=mvpredlag_ehf2$vcov, model.link="log", at=0:lmax)
 
 
 
@@ -263,7 +181,7 @@ totclaims <- rep(NA,length.ds.city)
 names(totclaims) <- ds.city
 
 # Objects to store attributable injuries (simulations)
-sim.names <- c("Total","Cold","Heat","Extreme cold","Moderate cold","Moderate heat","Extreme heat")
+sim.names <- c("Non-heatwave days","Heatwaves","Low-intensity heatwaves","Severe heatwaves","Extreme heatwaves")
 length.sim <- length(sim.names)
 matsim <- matrix(NA, length.ds.city, length.sim, dimnames=list(ds.city, sim.names)) # matrix: attributable injuries
 arraysim <- array(NA, dim=c(length.ds.city, length.sim, nsim), dimnames=list(ds.city, sim.names)) # array: attributable injuries CI
@@ -279,6 +197,8 @@ for(i in ds.city){
   # Predictions and reduction to lag-response at 1st (extreme cold) and 99th (extreme hot) percentiles with new centering (changes coef and vcov)
   if (is.numeric(cenpercountry)) {
     .cen <- quantile(temps[[i]], cenpercountry/100, na.rm=T)
+  } else if(cenpercountry=='ehf') {
+    .cen <- 0 # centred on 0
   } else {
     .cen <- exposure.mean[i] # mean
   }
@@ -290,37 +210,27 @@ for(i in ds.city){
   .perc <-  exposure.by[i,] # all percentiles and related average exposure
   .blups <- blups[[which(ds.city==i)]]
   
-  matsim[i,"Total"] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen)
-  matsim[i,"Cold"] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                             range=c(-100, .cen))
-  matsim[i,"Heat"] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                             range=c(.cen, 100))
-  matsim[i,"Extreme cold"] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                     range=c(-100,.perc["2.5"]))
-  matsim[i,"Moderate cold"] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                         range=c(.perc["2.5"],.cen))
+  matsim[i,sim.names[1]] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                   range=c(-100,.cen))
+  matsim[i,sim.names[2]] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                   range=c(.cen,100))
+  matsim[i,sim.names[3]] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                   range=c(.cen,exposure_ehf[i,2]))
+  matsim[i,sim.names[4]] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                   range=c(exposure_ehf[i,2],exposure_ehf[i,3]))
+  matsim[i,sim.names[5]] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                   range=c(exposure_ehf[i,3],100))
   
-  matsim[i,"Moderate heat"] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                         range=c(.cen,.perc["97.5"]))
-  matsim[i,"Extreme heat"] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                     range=c(.perc["97.5"],100))
-  
-  # Compute empirical occurrences of attributable numbers used to derive CIs
-  # Based on overall curve, patterns seems consistent from mean till generally about 10th/90th percentile, and then a sharper change at 2.5th/97.5th percentile
-  arraysim[i,"Total",] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                 sim=T, nsim=nsim)
-  arraysim[i,"Cold",] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                range=c(-100, .cen), sim=T, nsim=nsim)
-  arraysim[i,"Heat",] <-  attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                 range=c(.cen,100), sim=T, nsim=nsim)
-  arraysim[i,"Extreme cold",] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                        range=c(-100,.perc["2.5"]), sim=T, nsim=nsim)
-  arraysim[i,"Moderate cold",] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                            range=c(.perc["2.5"],.cen), sim=T, nsim=nsim)
-  arraysim[i,"Moderate heat",] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                            range=c(.cen,.perc["97.5"]), sim=T, nsim=nsim)
-  arraysim[i,"Extreme heat",] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir='forw', cen=.cen,
-                                        range=c(.perc["97.5"], 100), sim=T, nsim=nsim)
+  arraysim[i,sim.names[1],] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                      range=c(-100, .cen), sim=T, nsim=nsim)
+  arraysim[i,sim.names[2],] <-  attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                       range=c(.cen,100), sim=T, nsim=nsim)
+  arraysim[i,sim.names[3],] <-  attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                       range=c(.cen,exposure_ehf[i,2]), sim=T, nsim=nsim)
+  arraysim[i,sim.names[4],] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                      range=c(exposure_ehf[i,2],exposure_ehf[i,3]), sim=T, nsim=nsim)
+  arraysim[i,sim.names[5],] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
+                                      range=c(exposure_ehf[i,3],100), sim=T, nsim=nsim)
 
   totclaims[i] <- sum(.outcome, na.rm=T) # store total injuries (account for missing)
 }

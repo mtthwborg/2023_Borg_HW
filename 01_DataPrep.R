@@ -24,6 +24,7 @@ library(weathermetrics) # Modified version of heat index
 # Graphing
 library(pryr) # %<a-%
 
+rm(list=ls())   # remove existing variables
 
 
 ##################################################

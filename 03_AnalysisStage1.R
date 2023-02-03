@@ -8,16 +8,15 @@ predper.short <- c(1,2.5,10,25,50,75,90,97.5,99) # c(1,10,90,99) # percentiles t
 
 
 ##################################################
-### MODEL, INDOOR/OUTDOOR AND DISTRIBUTION
+### MODEL AND DISTRIBUTION
 ##################################################
+
 
 # Type of outcome
 if (str_detect(outcome.var, paste(c('claims','injur','disease','llness','OIIs'), collapse="|"))) {
-  type.outcome <- 'oi' # injury and/or illness (disease or condition)
-} else if (any(str_detect(outcome.var, c('non-zero','non-0','no zero','no 0'))) | isTRUE(plus1)) {
-  type.outcome <- 'non-0' # costs without 0 values
+  type.outcome <- 'oi' # Injury and/or illness (disease or condition)
 } else {
-  type.outcome <- 'cost' # costs with 0 values
+  type.outcome <- 'cost' # Costs
 }
 
 # Outcome distribution
@@ -159,7 +158,7 @@ names(vcov) <- ds.city
 m.tweedie.shape <- mean_rhs <- matrix(NA, length.ds.city, 1, dimnames=list(ds.city)) # matrix of NAs, with a column to denote optimised shape parameter
 
 # List objects
-rhs <- temps <- outcomes <- model <- model.omit <- model2 <- m.coef <- res <- model.checks <- check <- model.checks.month <- model.checks.week <- check.res.coef <- check.res.coef.sig <- exposure.rr.s1 <- red <- list() #  Model, residuals, residual length + plots and earity
+li_argvar <- rhs <- temps <- outcomes <- model <- model.omit <- model2 <- m.coef <- res <- exposure.rr.s1 <- red <- list() #  Model, residuals, residual length + plots and earity
 
 
 
@@ -172,20 +171,21 @@ time <- proc.time()[3]
 for(i in ds.city) {
   print(paste('Stage 1 model:',i))
   .ds <- daily.ds[City==i] # dataset for each unique value
-  .d <- .ds[-(1:lmax)] # dataset for each unique value without lagged values prior to study period
+  .d <- .ds[!is.na(get(outcome.var))] # no missing outcome. This removes lagged obserations prior to study period and non-heatwave periods
   .name <- unique(.ds$stratum) # names with all of a, b and c together
 
   # Dependent and independent variables using .ds
   .outcome <- outcomes[[i]] <- .d[,get(outcome.var)]
   no.outcome[i,] <- sum(outcomes[[i]] != 0) # number of non-zero (and non-missing) outcomes
-  temps[[i]] <- .d[,get(exposure.var)] # exposure. Include all temperature values used for dlnm including lagged values (early ones are used less, but so are day 0 values towards end of study)
+  temps[[i]] <- .ds[,get(exposure.var)] # exposure. Include all temperature values used for dlnm including lagged values (early ones are used less, but so are day 0 values towards end of study)
   # if (no.outcome[i,] < 100) {next} # skip iteration if number of outcomes is less than 100, which can lead to non-convergence. Still results in model output
   
   # Centre (reference value) on mean for crosspred
   .cen <- mean(temps[[i]], na.rm=T) 
   
   # Calculate crossbasis. Add group if restrict analysis to summer
-  .cb <- crossbasis(temps[[i]], argvar=list(fun=espline, knots=quantile(temps[[i]], eknots, na.rm=T)), lag=lmax, arglag=li_arglag)
+  li_argvar[[i]] <- list(fun=espline, knots=quantile(temps[[i]], eknots, na.rm=T), Bound=range(temps[[i]], na.rm=T)) # need Bound for projections, specifically do.call(onebasis,...)
+  .cb <- crossbasis(temps[[i]], argvar=li_argvar[[i]], lag=lmax, arglag=li_arglag)
   
   # Mean exposure and range, for meta-predictors. Note, this is only dependent on location and indoor/outdoor
   exposure[i,1] <- mean(temps[[i]], na.rm=T) # mean
@@ -217,7 +217,7 @@ for(i in ds.city) {
     } else {
       model[[i]] <- gam(as.formula(mformula), family=distribution, data=.ds, na.action="na.exclude", method=gam.convergence, maxit=max.iter)
     }
-   
+    
     # GAM SE, t-values, P-values and R^2
     .m.se <- summary(model[[i]])[["se"]]
     .m.t <- summary(model[[i]])[["p.t"]] # values not produced for gam smoothers

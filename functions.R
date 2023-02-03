@@ -1,4 +1,5 @@
 
+
 ## Calculate qAIC. fqaic.fn is adapted on fqaic from Gasparrini et al. 2015 Lancet
 ## model. Model outputted from glm() or mgcv::gam(). If glm() is not a quasimodel, qAIC will equal AIC (where dispersion factor=1)
 ## gam. Specify TRUE if gam() used, FALSE otherwise (default)
@@ -31,4 +32,28 @@ fwald2.fn <- function(model, var, short=F) {
     names(results) <- c('Wald statistic','df','p-value')
     return(results)
   }
+}
+
+## Report mixmeta Cochran Q test, I^2 and AIC statistics from a mixmeta or mvmeta object (mv.)
+mv.results.fn <- function(mv.) {
+  sum.mv.q <- summary(mv.)[["qstat"]] # Q-stat values. Can also get with qtest()
+  .vars <- attr(mv.[['terms']],"term.labels") # fixed variables
+  if(identical(.vars,character(0))) { # if no fixed predictors
+    .vars.wald <- NULL
+  } else {
+    .vars.wald <- c(sapply(.vars, function(w) fwald2.fn(mv., w))) # results from multivariate Wald test
+    names(.vars.wald) <- paste(rep(.vars, each=3), c('W','df','p'), sep = ".")
+  }
+  .mv.results <- c('Q-statistic'=sum.mv.q$Q[1], 'df'=sum.mv.q$df[1], 'P-value'=sum.mv.q$pvalue[1], 'I^2'=summary(mv.)[["i2stat"]][1], 'AIC'=AIC(mv.), .vars.wald)
+  names(.mv.results) <- str_remove_all(names(.mv.results), '..all') # remove ..all  from mixmeta code
+  return(.mv.results) # return combined results
+}
+
+
+## Wrap format() around round(). Enables more control over presentation of rounded results. Converts results to character
+# round.fn <- function(x, digits=0) {format(round(x, digits), nsmall=digits, trim=T)}
+round.fn <- function(x, round=0,trim=T,big.mark=",",significant=NULL, justify=c("left","right","centre","none"),width=NULL,na.encode=T,scientific=NA,big.interval=3L,small.mark="",small.interval=5L,decimal.mark=getOption("OutDec"),zero.print=NULL,drop0trailing=F,...) {
+  .x <- round(x, digits=round)
+  .x <- format(.x, nsmall=round, trim=trim, big.mark=big.mark, digits=significant,justify=justify,width=width,na.encode=na.encode,scientific=scientific,big.interval=big.interval,small.mark=small.mark,small.interval=small.interval,decimal.mark=decimal.mark,zero.print=zero.print,drop0trailing=drop0trailing,...)
+  return(.x)
 }
