@@ -110,7 +110,7 @@ dir.create(paste0(base,'/Projections')) # Warning if exists (doesn't replace)
 
 # Restrict to study period, retaining lagged climate data prior to study period to use for DLNMs
 daily.ds <- daily.ds[Date %in% seq(as.Date('2005-07-01')-lmax, as.Date('2018-06-30'), by="day")]
-daily.ds[Date < '2005-07-01', (outcome.var):=NA] # ignore outcome in lagged days perior to stud period
+daily.ds[Date < '2005-07-01', (outcome.var):=NA] # ignore outcome in lagged days prior to stud period
 
 # Limit results to warm season by removing outcome data during cold season. Keeps temperature data intact for lag
 daily.ds[Month %in% 4:9, (outcome.var):=NA]
@@ -171,15 +171,15 @@ time <- proc.time()[3]
 for(i in ds.city) {
   print(paste('Stage 1 model:',i))
   .ds <- daily.ds[City==i] # dataset for each unique value
-  .d <- .ds[!is.na(get(outcome.var))] # no missing outcome. This removes lagged obserations prior to study period and non-heatwave periods
+  .d <- .ds[!is.na(get(outcome.var))] # no missing outcome. This removes lagged observations prior to study period and non-heatwave periods
   .name <- unique(.ds$stratum) # names with all of a, b and c together
 
   # Dependent and independent variables using .ds
-  .outcome <- outcomes[[i]] <- .d[,get(outcome.var)]
+  .outcome <- .ds[,get(outcome.var)] # include NA
+  outcomes[[i]] <- .d[,get(outcome.var)] # no NA
   no.outcome[i,] <- sum(outcomes[[i]] != 0) # number of non-zero (and non-missing) outcomes
   temps[[i]] <- .ds[,get(exposure.var)] # exposure. Include all temperature values used for dlnm including lagged values (early ones are used less, but so are day 0 values towards end of study)
-  # if (no.outcome[i,] < 100) {next} # skip iteration if number of outcomes is less than 100, which can lead to non-convergence. Still results in model output
-  
+
   # Centre (reference value) on mean for crosspred
   .cen <- mean(temps[[i]], na.rm=T) 
   
