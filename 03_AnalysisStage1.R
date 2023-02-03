@@ -227,10 +227,9 @@ for(i in ds.city) {
     if (distribution[1]=='Tweedie') { 
       var.power[[i]] <- tweedie.profile(formula=mformula, data=.ds, p.vec=var.power.values, method='series', do.ci=F, do.smooth=tp.smooth) # estimate optimal shape parameter. Turn off CI for speed
       m.tweedie.shape[i,] <- var.power[[i]]$p.max # save shape parameter
-      model[[i]] <- glm(as.formula(mformula), family=tweedie(var.power=m.tweedie.shape[i,], link.power=0), .ds, na.action="na.omit", control=list(maxit=max.iter)) # "na.exclude". na.omit works better for Tweedie e.g. AIC calculation
-      # model.omit[[i]] <- glm(as.formula(mformula), family=tweedie(var.power=m.tweedie.shape[i,], link.power=0), .ds, na.action="na.omit", control=list(maxit=max.iter)) # NAs will cause tweedie AIC calculation to fail 
+      model[[i]] <- glm(as.formula(mformula), family=tweedie(var.power=m.tweedie.shape[i,], link.power=0), .ds, na.action="na.omit", control=list(maxit=max.iter)) # na.omit instead of na.exclude works better for Tweedie e.g. AIC calculation
     } else {
-      model[[i]] <- glm(as.formula(mformula), family=distribution, .d, na.action="na.exclude", control=list(maxit=max.iter))
+      model[[i]] <- glm(as.formula(mformula), family=distribution, .ds, na.action="na.exclude", control=list(maxit=max.iter))
     }
     
     # GLM SE, t-values, P-values and R^2
