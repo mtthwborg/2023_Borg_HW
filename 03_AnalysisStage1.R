@@ -100,8 +100,8 @@ s1results <- paste0(base,'/Stage 1/')
 dir.create(paste0(base,'/Stage 1')) # Warning if exists (doesn't replace)
 s2results <- paste0(base,'/Stage 2/')
 dir.create(paste0(base,'/Stage 2')) # Warning if exists (doesn't replace)
-projresults <- paste0(base,'/Projections/')
-dir.create(paste0(base,'/Projections')) # Warning if exists (doesn't replace)
+# projresults <- paste0(base,'/Projections/')
+# dir.create(paste0(base,'/Projections')) # Warning if exists (doesn't replace)
 
 
 ##################################################

@@ -76,11 +76,10 @@ oiperiod <- rep(NA, length(tot.city)) # Average number of outcomes across period
 names(oiperiod) <- tot.city # names of locations
 
 for(a in ds.city) {
-  .ds <- daily.ds[stratum==a & !(Month==2 & Day==29)] # dataset per stratum. 29th Feb is not in projected data, so remove this day
+  .ds <- daily.ds[City==a & !(Month==2 & Day==29)] # dataset per stratum. 29th Feb is not in projected data, so remove this day
   .ds[,doy := leap.ever.year.fn(Date)] # day per year. in case you wish to include 29 Feb, this function will
   oidom[[a]] <- .ds[Month %in% c(10,11,12,1,2,3), lapply(.SD, mean, na.rm=T), by=Day, .SDcols=outcome.var][,get(outcome.var)] # averaged estimate per day of the month
   oidoy[[a]] <- .ds[Month %in% c(10,11,12,1,2,3), lapply(.SD, mean, na.rm=T), by=doy, .SDcols=outcome.var][,get(outcome.var)] # averaged estimate per day of the year
-  # oiperiod[a] <- sum(oidoy[[a]])*no.years[a,] # sum of outcome across entire retrospective (13- or 12-year) period per city
   oiperiod[a] <- sum(oidoy[[a]]) # sum of outcome across projection period averaged annually (minus day 366) per city
   oiproj30[[a]] <- rep(oidoy[[a]], length=length(unique(ccia_future2[City=='Adelaide' & Model==gcm[1] & RCP==rcp[1] & Period==prd[1] & Month %in% c(10,11,12,1,2,3),Date]))) # repeat along 2016-45. Choice of city, gcm, rcp and prd doesn't matter
   oiproj50[[a]] <- rep(oidoy[[a]], length=length(unique(ccia_future2[City=='Adelaide' & Model==gcm[1] & RCP==rcp[1] & Period==prd[2] & Month %in% c(10,11,12,1,2,3),Date]))) # repeat along 2036-65
@@ -103,10 +102,6 @@ proj.exp.size <- nrow(ccia_future2[City=='Adelaide' & RCP==rcp[1] & Model==gcm[1
 projexpmark <- matrix(NA, proj.exp.size, length(sim.names))
 colnames(projexpmark) <- sim.names
 
-
-## Calculate ANs
-## pre-BLUP estimates: coef[a,] and vcov[[a]]
-## BLUP estimates:blups[[which(ds.city==a)]]$blup and blups[[which(ds.city==a)]]$vcov
 
 gc()
 time <- proc.time()[3]
@@ -271,9 +266,6 @@ projanby <- c(projafby,'Series')
 projan1 <- merge(merge(projans1[Estimate=='est',-"Estimate"], projans1[Estimate=='ci.l',-"Estimate"], by=projanby), projans1[Estimate=='ci.u',-"Estimate"], by=projanby)
 colnames(projan1) <- c(projanby,'Estimate','LCI','UCI')
 projan1[,AN:=paste0(round.fn(Estimate,afyr.r),' (',round.fn(LCI,afyr.r),' to ',round.fn(UCI,afyr.r),')')]
-# projan1[,ANy:=paste0(round.fn(Estimate/30,afyr.r),' (',round.fn(LCI/30,afyr.r),' to ',round.fn(UCI/30,afyr.r),')')] # AN as average per year
-# projan1[City=='Hobart',ANy:=paste0(round.fn(Estimate/30*12,afyr.r),' (',round.fn(LCI/30*12,afyr.r),' to ',round.fn(UCI/30*12,afyr.r),')')] # AN as average of 30 years
-# projan1[City!='Hobart',ANy:=paste0(round.fn(Estimate/30*13,afyr.r),' (',round.fn(LCI/30*13,afyr.r),' to ',round.fn(UCI/30*13,afyr.r),')')] # AN as average of 30 years
 projan1[,':='(Estimate=NULL, LCI=NULL, UCI=NULL)] # do not want these
 
 ## Reshape AN results to include outcomes on one row
@@ -303,52 +295,6 @@ write.csv(projan2, file=paste0(outcome.exposure.loc.s3, 'Numbers.csv'), na='', r
 # ccia_future2[RCP %in% c('rcp45','rcp85'), lapply(.SD, mean, na.rm=T), by=.(City,RCP,Period), .SDcols=c('tas','tasmax','Excess heat factor','ehisig','ehiaccl')] # do increase slightly from rcp45 to rp85
 # despite this, EHF AF is slightly lower for rcp85 compared to rcp45, despite the generally higher temperatures and ?more heatwave conditions. Perhaps acclimatisation was improved, with dmt3 being more comparable more often than before to last 30 days
 
-
-
-################################################################################
-# Overall exposure-response relationship with set adjustment for adaptation
-# This works, but is arbitrary. For EHF, adaptation based on DMT95 is intrinsic to the metric
-################################################################################
-
-# MAB: demographic changes (07.1) is repeating curve for age-specific categories. This doesn't assume changes in age distributions, and is equal to rerunnning my code with filters
-# MAB: could consider projected demographic changes here by multiplying ANs by new expected changes in said demographics
-
-# # Plot: Overall cumulative exposure-response association (all exposure values, lag reduced)
-# png(file = paste0(outcome.exposure.loc.s3, 'Overall e-r ',adapt.set,' adaptation.png'), res=gdpi, width=glength, height=glength) # plot location. File name based on heat metric
-# par(mar=c(4.1,3,1.6,0)) # inner graph margins, as much whitespace removed as possible
-# if(isTRUE(ehf.marker))  { # if excess heat factor or heatwave
-#   plot(cp_ehf,lwd=2,col="green",yaxt='n', ylim=c(min(oer.yaxis), max(oer.yaxis)), xlab='', ylab='', ci='n') # turn off CI for dual graph with adaptation
-#   lines(cp_ehf$predvar[ind1],cp_ehf$allRRfit[ind1],col=4,lwd=2)
-#   lines(cp_ehf$predvar[ind2],cp_ehf$allRRfit[ind2],col='tan1',lwd=2) # low-intensity heatwave
-#   lines(cp_ehf$predvar[ind85],cp_ehf$allRRfit[ind85],col='red',lwd=2) # severe heatwave
-#   lines(cp_ehf$predvar[ind852],cp_ehf$allRRfit[ind852],col='firebrick4',lwd=2) # extreme heatwave
-#   title(xlab=paste(exposure.var, "(°K)"), line=2) 
-#   abline(v=c(exposure_ehf_overall[2:3]), lty=c(3,3)) # severe and extreme heatwaves
-#   axis(2, at=oer.yaxis, labels=(oer.yaxis-1)*100, las=1, mgp=c(2.5,0.8,0))
-#   lines(cp_ehf$predvar[ind2!=ind85],exp(log(cp_ehf$allRRfit[ind2!=ind85])*adapt.set),col='tan1',lwd=2,lty=3) # adaptation to low-intensity heatwave. Convert back to coefficient scale (log) to apply adaptation, then exp to reconvert to RR
-#   lines(cp_ehf$predvar[ind85!=ind852 | names(cp_ehf$allfit)==exposure_ehf_overall[3]],exp(log(cp_ehf$allRRfit[ind85!=ind852 | names(cp_ehf$allfit)==exposure_ehf_overall[3]])*adapt.set),col='red',lwd=2,lty=3) # adaptation to severe heatwave. adapted so dots/lines do not overlap with extreme heatawve
-#   lines(cp_ehf$predvar[ind852],exp(log(cp_ehf$allRRfit[ind852])*adapt.set),col='firebrick4',lwd=2,lty=3) # adaptation to extreme heatwave
-# } else { 
-#   plot(cp,lwd=2,col="white",axes=F, ylim=c(min(oer.yaxis), max(oer.yaxis)), xlab='', ylab='') # str_remove_all(paste0('Percent change in ',tolower(outcome.var)," (%)"),'\\(000s\\)') # ylim=c(floor(min(cp[["allRRfit"]])*10)/10-0.05, ceiling(max(cp[["allRRfit"]])*10)/10+0.05)
-#   ind1 <- cp$predvar<=cp$cen
-#   ind2 <- cp$predvar>=cp$cen
-#   lines(cp$predvar[ind1],cp$allRRfit[ind1],col=4,lwd=2)
-#   lines(cp$predvar[ind2],cp$allRRfit[ind2],col=2,lwd=2)
-#   axis(1, at=exposure.country.mean[indlab], labels=predper[indlab], cex.axis=0.8, gap.axis=0.1, mgp=c(2.5,0.3,0))
-#   mtext('Percentile', 1, at=7.8, outer=F, cex=0.8, adj=1)
-#   axis(1, at=seq(ceiling(min(cp$predvar)),max(cp$predvar),by=1), cex.axis=0.8, line=xline2, mgp=c(2.5,0.3,0)) # round min inwards with ceiling, otherwise starting point is decimals. From there on, proceed by 2
-#   mtext('Value', 1, at=7.8, outer=F, cex=0.8, line=xline2, adj=1)
-#   axis(2, at=oer.yaxis, labels=(oer.yaxis-1)*100, cex.axis=0.8, las=1, mgp=c(2.5,0.8,0))
-#   title(xlab=paste0(exposure.var," (°C)"), line=3.1) # xtitle, moved away from graph
-#   abline(v=c(exposure.country.mean[c("2.5","97.5")]), lty=c(3,3)) # choosing these in part because previous studies highlighted 1&99, in part because these corresponding to extreme, and in part because there's extreme heat results
-#   
-#   lines(cp$predvar[ind1],exp(log(cp$allRRfit[ind1])*adapt.set),col=4,lwd=2,lty=2)
-#   lines(cp$predvar[ind2],exp(log(cp$allRRfit[ind2])*adapt.set),col=2,lwd=2,lty=2)
-# }
-# title(main=str_replace(str_remove_all(outcome.var,'\\(000s\\)'),'Number of illnesses','Number of injuries and illnesses'), line=nline) # title, move closer to graph
-# title(ylab='Percent change (%)', line=2.1) # title, move closer to graph
-# abline(v=cp$cen,lty=2) # centre line
-# dev.off() # Save image + clear settings
 
 
 ######################### END ############################

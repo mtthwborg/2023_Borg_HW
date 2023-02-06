@@ -65,14 +65,18 @@ cenpen <- 'ehf' # Centre on 0, as per EHF
 cenpen.minmax <- c(10,90) # max and min value for cenpen. Ignored if cenpen set manually # c(10,90) # c(25,75)
 
 
-## Attributable numbers and fractions
-nsim <- 5000 # Number of simulation runs for computing empirical CI
+### Attributable numbers and fractions
+ehf.attr.names <- c("Non-heatwave days","Heatwaves","Low-intensity heatwaves","Severe heatwaves","Extreme heatwaves") # attributable category names
+nsim <- 5000 # Number of simulation runs for computing retrospective empirical CI
+nsim2 <- 5000  # Number of simulation runs for computing projected empirical CI
 attrdl.dir <- 'forw' # Direction, either forw or back. back not allowed for reduced estimates
 a.full <- F # if F, don't do mild and moderate heat and cold
-af.round <- 2 # Round attributable fraction to number of decimal figures
 
+### Round attributable fraction to number of decimal figures
+af.round <- 3 # as heatwave estimates are so close to the eCI limits, use 3 instead of 2
 
-## Graphical parameters
+## Graphical
+hwcolours <-  c('blue','chartreuse4','tan1','red','firebrick4')
 nline <- 0.8 # distance from title to plot for plots
 tline <- 0.1 # distance from title to plot for condensed plots
 xline2 <- 1.6 # location of second xaxis
@@ -88,9 +92,11 @@ cexaxis <- 1
 
 # y-axes (affect S2 graphs)
 rr.yaxis <- 'auto'
-bigvar.yaxis <- c(-15,60)
-bigvarby <- 15
-oer.yaxis <- seq(0.9,1.5,by=0.1)
+bigvar.yaxis <- c(-20,60)
+bigvarby <- 10
+oer.yaxis <- seq(0.8,1.6,by=0.1)
+oer.yaxis.blup <- seq(0.5,2,by=0.1)
+oer.colours <- c('red','orange','gold','green','cyan','steelblue2','purple')
 
 
 
@@ -108,9 +114,8 @@ for (outcome.var in c('Number of OIIs',"Total costs","Costs per OII")) { # Loop 
   source('04_AnalysisStage2.r')
   gc()
 }
-proc.time()[3]-time # Report time taken
-# Loop time taken on Apple M1 Max (Darwin Kernel Version 21.6.0) was approximately 30 to 35 seconds
-# Loop time taken on Windows 10 (x86_64-w64-mingw32/x64) was approximately 1.5 to 2.5 minutes
+proc.time()[3]-time # Report time takens
+# Loop time taken on Apple M1 Max (Darwin Kernel Version 21.6.0) was approximately 8 seconds
 
 
 

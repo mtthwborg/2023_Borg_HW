@@ -13,7 +13,7 @@ write.csv(mv.results, file=paste0(s2results, 'MM tests.csv'), na='', row.names=T
 
 
 ## Pool estimated overall cumulative exposure-response associations to obtain overall estimation at each location level for main model
-blups <- blup(mv, vcov=T) # BLUPs. Element for each stratum
+blups <- blup(mv, vcov=T) # BLUPs. Element for each City
 
 
 
@@ -27,7 +27,7 @@ names(mintempcity) <- names(minpercity) <- ds.city
 
 # Define minimum injuries values, excluding very low and hot Ts (<1st and >99th percentiles)
 for(i in ds.city) {
-  .ds <- daily.ds[City==i] # dataset for each unique value # daily.ds[stratum=='Hobart: Indoor']
+  .ds <- daily.ds[City==i] # dataset for each unique value # daily.ds[City=='Hobart: Indoor']
   
   # Use same exposure-response relationship, but for exposure percentiles 1-99
   .predvar <- quantile(temps[[i]], 1:99/100,na.rm=T)
@@ -47,9 +47,9 @@ for(i in ds.city) {
 # Predict pooled overall cumulative associations
 ################################################################################
 
-## Mean values of mixmeta predictors as a data frame. In this case none, so no change
-datanew <- as.data.frame(t(colMeans(mm.pred.m))) # names of datanew and mvpred must match
-mvpred <- predict.mixmeta(mv, datanew, vcov=T, format="list") # Results are identical to that of mixmeta because there are no meta-predictors
+## Mean values of mixmeta predictors as a data frame to combine. In this case no meta predictors
+datanew <- as.data.frame(t(rep(1,length.ds.city)))
+mvpred <- predict.mixmeta(mv, datanew, vcov=T, format="list")
 
 ## Define exposure percentile with lowest incidence of injuries
 bvar <- crossbasis(exposure.country.mean, argvar=list(fun=espline, knots=exposure.country.mean[paste0(eknots*100)]), arglag=li_arglag) # crossbasis
@@ -78,7 +78,10 @@ if(is.numeric(cenpercountry)) {
 }
 
 # Predict pooled overall cumulative associations (RR) for main model
-cp <- crosspred(bvar, coef=mvpred$fit, vcov=mvpred$vcov, model.link="log", at=exposure.country.mean, cen=centre)
+exposure_ehf_overall <- colMeans(exposure_ehf)
+ehfmean <- sum(sapply(temps, sum)) / sum(sapply(temps, length))
+cp <- crosspred(bvar, coef=mvpred$fit, vcov=mvpred$vcov, model.link="log", at=c(exposure.country.mean,exposure_ehf_overall,ehfmean), cen=centre)
+save(cp, file=paste0(s2results, 'cp.rda')) # save for fwald1
 
 
 
@@ -98,7 +101,7 @@ names(cpmodel) <- names(vcovlag_ehf1) <- names(vcovlag_ehf2) <- ds.city
 for(i in ds.city) {
   # print(paste('Stage 2 individual models:',i))
   .ds <- daily.ds[City==i] # dataset for each unique value
-  .name <- unique(.ds$stratum) # names with all of a, b and c together
+  .name <- unique(.ds$City) # names with all of a, b and c together
   
   .outcome <- .ds[,get(outcome.var)] # outcome
   
@@ -158,17 +161,18 @@ results.short[predprer.short.rep,2:4] <- c(cp$allRRfit[predper %in% predper.shor
                                            cp$allRRhigh[predper %in% predper.short]) # column 4 is RRhigh
 results.short <- round(results.short, digits=3)
 
-# All percentiles
-predprer.rep <- 1:length(predper) # number of percentiles
-results <- matrix(NA, nrow=length(predper), ncol=4) # create empty matrix of results
-results[,1] <- predper # 1st column is percentile values
-results[predprer.rep,2:4] <- c(cp$allRRfit,cp$allRRlow,cp$allRRhigh) # column 2/3/4 is RR/RRlow/RRhigh corresponding to each percentile (row), 
-results <- round(results, digits=3)
-
-
-# Export results
-colnames(results) <- c('Percentile','RR','RRlow','RRhigh') # column names
-write.csv(results, file=paste0(s2results,'RR (95% CI).csv'), na='', row.names=F) # create csv file
+# # All percentiles
+# predprer.rep <- 1:length(predper) # number of percentiles
+# results <- matrix(NA, nrow=length(predper), ncol=4) # create empty matrix of results
+# results[,1] <- predper # 1st column is percentile values
+# results[predprer.rep,2:4] <- c(cp$allRRfit,cp$allRRlow,cp$allRRhigh) # column 2/3/4 is RR/RRlow/RRhigh corresponding to each percentile (row), 
+# results[predprer.rep,2:4] <- matrix(c(cp$allRRfit,cp$allRRlow,cp$allRRhigh), ncol=3) # column 2/3/4 is RR/RRlow/RRhigh corresponding to each percentile (row), 
+# results <- round(results, digits=3)
+# 
+# 
+# # Export results
+# colnames(results) <- c('Percentile','RR','RRlow','RRhigh') # column names
+# write.csv(results, file=paste0(s2results,'RR (95% CI).csv'), na='', row.names=F) # create csv file
 
 
 
@@ -237,52 +241,45 @@ for(i in ds.city){
 
 
 ### Attributable numbers ###
-# City-specific attributable numbers. Already have row names
-ancitylow <- apply(arraysim,c(1,2),quantile,0.025)
+
+if (type.outcome=='oi') { # if number of claims/injuries/diseases
+  afyr.r <- 2 # round yearly results to 2 df to show Darwin stats clearly
+} else {
+  afyr.r <- 1 # round yearly results to 1 df to show Darwin stats clearly
+}
+
+## City-specific attributable numbers. Already have row names
+ancitylow <- apply(arraysim,c(1,2),quantile,0.025) # quantile across dimensions 1 and 2
 ancityhigh <- apply(arraysim,c(1,2),quantile,0.975)
+matsim.yr <- sweep(matsim,MARGIN=1,no.years,'/') # AN per year, factoring in different years per city (Hobart)
+ancitylow.yr <- sweep(ancitylow,MARGIN=1,no.years,'/')
+ancityhigh.yr <- sweep(ancityhigh,MARGIN=1,no.years,'/')
+
 ancity <- matrix(paste0(round.fn(matsim),' (',round.fn(ancitylow),' to ',round.fn(ancityhigh),')'), ncol=length.sim) # insert comma every 3 digits, no rounding
-rownames(ancity) <- ds.city
+ancity.yr <- matrix(paste0(round.fn(matsim.yr,afyr.r),' (',round.fn(ancitylow.yr,afyr.r),' to ',round.fn(ancityhigh.yr,afyr.r),')'), ncol=length.sim) # insert comma every 3 digits, no rounding
+rownames(ancity) <- rownames(ancity.yr) <- ds.city
 
-# Total attributable numbers
+## Total attributable numbers
 antot <- colSums(matsim) # sum through strata
-antotlow <- apply(apply(arraysim,c(2,3),sum),1,quantile,0.025)
+antotlow <- apply(apply(arraysim,c(2,3),sum),1,quantile,0.025) # sum by dimensions 2 and 3 (across all other dimension i.e. 1st), then quantile by new dimension 1 (old 2nd dimension) (quantile across new dimension 2 which is old 3rd dimension)
 antothigh <- apply(apply(arraysim,c(2,3),sum),1,quantile,0.975)
+antot.yr <- colSums(matsim.yr) # per year results
+antotlow.yr <- colSums(ancitylow.yr) # per year results. quantile calculation slightly differs from above, but necessary as above approach doesn't consider different years per city (Hobart)
+antothigh.yr <- colSums(ancityhigh.yr) # per year results
+
 antotal <- matrix(paste0(round.fn(antot),' (',round.fn(antotlow),' to ',round.fn(antothigh),')'), ncol=length.sim)
-rownames(antotal) <- 'Total'
-colnames(ancity) <- sim.names # colnames
+antotal.yr <- matrix(paste0(round.fn(antot.yr,afyr.r),' (',round.fn(antotlow.yr,afyr.r),' to ',round.fn(antothigh.yr,afyr.r),')'), ncol=length.sim)
+rownames(antotal) <- rownames(antotal.yr) <- 'Total'
+colnames(ancity) <- colnames(ancity.yr) <- sim.names # colnames
 
-# City and IO attributable numbers
-an_city <- .an_citylow <- .an_cityhigh <- matrix(NA, length.ds.city/2, length.sim, dimnames=list(sort(unique(daily.ds[,City])))) # matrix of NAs, AN for cities
-colnames(an_city) <- sim.names # colnames
-.an_city <- rowsum(matsim, as.integer(gl(nrow(matsim), 2, nrow(matsim)))) # sum every 2 rows for city AN
-for(i in 1:(length.ds.city/2)) { # for each city
-  .an_cityv <- colSums(arraysim[(i*2-1):(i*2),,]) # sum results within same city, still keeping all repetitions
-  .an_citylow[i,] <- apply(.an_cityv,1,quantile,0.025) # lower quantile
-  .an_cityhigh[i,] <- apply(.an_cityv,1,quantile,0.975) # upper quantile
-}
-an_city <- matrix(paste0(round.fn(.an_city),' (',round.fn(.an_citylow),' to ',round.fn(.an_cityhigh),')'), ncol=length.sim) # combine for presentation
-rownames(an_city) <- rownames(.an_citylow) <- rownames(.an_cityhigh) <- sort(unique(daily.ds[,City])) # rownames
-
-an_io <- .an_iolow <- .an_iohigh <- matrix(NA, length.ds.city/length(unique(daily.ds[,City])), length.sim, dimnames=list(sort(unique(daily.ds[,outin])))) # matrix of NAs, AN for indoor/outdoor
-.an_io <- rowsum(matsim, rep(1:2,length.ds.city/2)) # sum every 2 rows for city AN
-for(i in 1:2) { # for each indoor/outdoor combination
-  .an_iov <- colSums(arraysim[seq(0,length.ds.city-2,by=2)+i,,]) # sum results for each indoor or outdoor, still keeping all repetitions
-  .an_iolow[i,] <- apply(.an_iov,1,quantile,0.025) # lower quantile
-  .an_iohigh[i,] <- apply(.an_iov,1,quantile,0.975) # upper quantile
-}
-
-an_io <- matrix(paste0(round.fn(.an_io),' (',round.fn(.an_iolow),' to ',round.fn(.an_iohigh),')'), ncol=length.sim) # combine for presentation
-rownames(an_io) <- rownames(.an_iolow) <- rownames(.an_iohigh) <- sort(unique(daily.ds[,outin])) # rownames
-colnames(an_io) <- colnames(antotal) <- sim.names # colnames
-ancountry <- rbind(antotal, an_io, an_city, ancity) # all ANs
-  
-
-# Export attributable numbers
-write.csv(ancountry, file=paste0(s2results, 'Attributable numbers.csv'), na='', row.names=T) # create csv file
+## Export attributable numbers
+ancountry <- rbind(antotal, ancity) # ANs without extra stratification
+ancountry.yr <- rbind(antotal.yr, ancity.yr) # ANs without extra stratification
+write.csv(ancountry, file=paste0(s2results, 'Numbers.csv'), na='', row.names=T) # create csv file
+write.csv(ancountry.yr, file=paste0(s2results, 'Numbers per year.csv'), na='', row.names=T) # create csv file
 
 
 ### Attributable fractions ###
-
 totclaimtot <- sum(totclaims) # total injuries
 
 # City-specific
@@ -300,27 +297,13 @@ aftotal <- matrix(paste0(round.fn(aftot, af.round),' (',round.fn(aftotlow, af.ro
 rownames(aftotal) <- 'Total'
 colnames(afcity) <- colnames(aftotal) <- sim.names # colnames
 
-# City and IO attributable numbers
-totclaimscity <- rollapply(totclaims, 2, by=2, sum)
-afcitcity <- .an_city/totclaimscity*100
-afcitycitylow <- .an_citylow/totclaimscity*100
-afcitycityhigh <- .an_cityhigh/totclaimscity*100
-afcitycity <- matrix(paste0(round.fn(afcitcity, af.round),' (',round.fn(afcitycitylow, af.round),' to ',round.fn(afcitycityhigh, af.round),')'), ncol=length.sim)
-rownames(afcitycity) <- sort(unique(daily.ds$City)) # rownames
-
-totclaimsio <- c(sum(totclaims[c(TRUE, FALSE)]), sum(totclaims[c(FALSE, TRUE)]))
-afcitio <- .an_io/totclaimsio*100
-afcityiolow <- .an_iolow/totclaimsio*100
-afcityiohigh <- .an_iohigh/totclaimsio*100
-afcityio <- matrix(paste0(round.fn(afcitio, af.round),' (',round.fn(afcityiolow, af.round),' to ',round.fn(afcityiohigh, af.round),')'), ncol=length.sim)
-rownames(afcityio) <- sort(unique(daily.ds[,outin])) # rownames
-colnames(afcitycity) <- colnames(afcityio) <- sim.names # colnames
-  
-afcountry <- rbind(aftotal, afcityio, afcitycity, afcity) # all AFs
-
-
 # Export attributable fractions
-write.csv(afcountry, file=paste0(s2results, 'Attributable fractions.csv'), na='', row.names=T) # create csv file
+afcountry <- rbind(aftotal, afcity) # AFs without extra stratification
+write.csv(afcountry, file=paste0(s2results, 'Fractions.csv'), na='', row.names=T) # create csv file
+
+# Export AF and AN together
+save(ancountry, ancountry.yr, afcountry, file=paste0(s2results, 'acountry.rda')) # save dataset after all changes for easier access
+
 
 
 ################################################################################
@@ -334,73 +317,41 @@ oer.yaxis <- seq(0.9,1.5,by=0.1)
 
 png(file = paste0(s2results, 'Overall e-r.png'), res=gdpi, width=glength, height=glength) # plot location. File name based on heat metric
 par(mar=c(4.1,3,1.6,0)) # inner graph margins, as much whitespace removed as possible
-
-plot(cp,lwd=2,col="white",axes=F, ylim=c(min(oer.yaxis), max(oer.yaxis)), xlab='', ylab='') # str_remove_all(paste0('Percent change in ',tolower(outcome.var)," (%)"),'\\(000s\\)') # ylim=c(floor(min(cp[["allRRfit"]])*10)/10-0.05, ceiling(max(cp[["allRRfit"]])*10)/10+0.05)
-ind1 <- cp$predvar<=cp$cen
-ind2 <- cp$predvar>=cp$cen
-lines(cp$predvar[ind1],cp$allRRfit[ind1],col=4,lwd=2)
-lines(cp$predvar[ind2],cp$allRRfit[ind2],col=2,lwd=2)
-axis(1, at=exposure.country.mean[indlab], labels=predper[indlab], cex.axis=0.8, gap.axis=0.1, mgp=c(2.5,0.3,0))
-mtext('Percentile', 1, at=7.8, outer=F, cex=0.8, adj=1)
-axis(1, at=seq(ceiling(min(cp$predvar)),max(cp$predvar),by=1), cex.axis=0.8, line=xline2, mgp=c(2.5,0.3,0)) # round min inwards with ceiling, otherwise starting point is decimals. From there on, proceed by 2
-mtext('Value', 1, at=7.8, outer=F, cex=0.8, line=xline2, adj=1)
-axis(2, at=oer.yaxis, labels=(oer.yaxis-1)*100, cex.axis=0.8, las=1, mgp=c(2.5,0.8,0))
-title(xlab=paste0(exposure.var," (°C)"), line=3.1) # xtitle, moved away from graph
-abline(v=c(exposure.country.mean[c("2.5","97.5")]), lty=c(3,3)) # choosing these in part because previous studies highlighted 1&99, in part because these corresponding to extreme, and in part because there's extreme heat results
-title(main=str_replace(str_remove_all(outcome.var,'\\(000s\\)'),'Number of OIIs','Number of injuries and illnesses'), line=nline) # title, move closer to graph
+plot(cp,lwd=2,col="white",yaxt='n', ylim=c(min(oer.yaxis), max(oer.yaxis)), xlab='', ylab='') # str_remove_all(paste0('Percent change in ',tolower(outcome.var)," (%)"),'\\(000s\\)') # ylim=c(floor(min(cp[["allRRfit"]])*10)/10-0.05, ceiling(max(cp[["allRRfit"]])*10)/10+0.05)
+ind1 <- cp$predvar<=exposure_ehf_overall[1]
+ind2 <- cp$predvar>=exposure_ehf_overall[1]
+ind85 <- cp$predvar>=exposure_ehf_overall[2]
+ind852 <- cp$predvar>=exposure_ehf_overall[3]
+lines(cp$predvar[ind1],cp$allRRfit[ind1],col=hwcolours[1],lwd=2)
+lines(cp$predvar[ind2],cp$allRRfit[ind2],col=hwcolours[3],lwd=2) # low-intensity heatwave
+lines(cp$predvar[ind85],cp$allRRfit[ind85],col=hwcolours[4],lwd=2) # severe heatwave
+lines(cp$predvar[ind852],cp$allRRfit[ind852],col=hwcolours[5],lwd=2) # extreme heatwave
+title(xlab=paste(exposure.var, "(°K)"), line=2) 
+abline(v=c(exposure_ehf_overall[2:3]), lty=c(3,3)) # severe and extreme heatwaves
+axis(2, at=oer.yaxis, labels=(oer.yaxis-1)*100, las=1, mgp=c(2.5,0.8,0))
+title(main=str_replace(str_remove_all(outcome.var,'\\(000s\\)'),'Number of illnesses','Number of injuries and illnesses'), line=nline) # title, move closer to graph
 title(ylab='Percent change (%)', line=2.1) # title, move closer to graph
 abline(v=cp$cen,lty=2) # centre line
-
 dev.off() # Save image + clear settings
 
 
 # Plot: overall cumulative lag-response associations
 .cexaxis <- 1
-
-lag.yaxis <- seq(0.98,1.02,by=0.01)
+lag.yaxis <- seq(0.97,1.05,by=0.01)
 .axis %<a-% {axis(2,at=lag.yaxis, labels=(lag.yaxis-1)*100, cex.axis=.cexaxis, las=1)} # shared axis as percentage change, tick labels are horizontal
 lag.ylim <- c(min(lag.yaxis),max(lag.yaxis))
 
 png(file = paste0(s2results, 'Overall lag.png'), res=gdpi, width=glength.3by3, height=glength.3by3) # plot location. File name based on heat metric
-par(mfrow=c(3,3), mar=c(3,2.5,1,1), oma=c(0,0,0,0), mgp=c(1.5,0.5,0)) # 3*3, space between borders and text
+par(mfrow=c(1,2), mar=c(3,2.5,1,1), oma=c(0,0,0,0), mgp=c(1.5,0.5,0)) # 3*3, space between borders and text
 
-plot(cplag1,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
-     ylim=lag.ylim,yaxt='n',col="steelblue3", ci.arg=list(density=20,col="steelblue3"))
-title(main='1st percentile', line=tline) # move title closer to graph
+plot(cplag_ehf1,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
+     ylim=lag.ylim,yaxt='n',col=hwcolours[4], ci.arg=list(density=20,col=hwcolours[4])) # practically identical to mean, thus no relationship apparent, but included for comparison and c(3,3) instead of c(2,4)
+title(main='Severe', line=tline)
 .axis
-plot(cplag2,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
-     ylim=lag.ylim,yaxt='n',col="steelblue2", ci.arg=list(density=20,col="steelblue2"))
-title(main='2.5th percentile', line=tline)
+plot(cplag_ehf2,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
+     ylim=lag.ylim,yaxt='n',col=hwcolours[5], ci.arg=list(density=20,col=hwcolours[5])) # practically identical to mean, thus no relationship apparent, but included for comparison and c(3,3) instead of c(2,4)
+title(main='Extreme', line=tline)
 .axis
-plot(cplag10,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
-     ylim=lag.ylim,yaxt='n',col="steelblue1", ci.arg=list(density=20,col="steelblue1"))
-title(main='10th percentile', line=tline)
-.axis
-plot(cplag25,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
-     ylim=lag.ylim,yaxt='n',col="skyblue1", ci.arg=list(density=20,col="skyblue1"))
-title(main='25th percentile', line=tline)
-.axis
-plot(cplag50,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
-     ylim=lag.ylim,yaxt='n',col="green", ci.arg=list(density=20,col="green")) # practically identical to mean, thus no relationship apparent, but included for comparison and c(3,3) instead of c(2,4)
-title(main='Median', line=tline)
-.axis
-plot(cplag75,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
-     ylim=lag.ylim,yaxt='n',col="orangered", ci.arg=list(density=20,col="orangered"))
-title(main='75th percentile', line=tline)
-.axis
-plot(cplag90,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
-     ylim=lag.ylim,yaxt='n',col="red1", ci.arg=list(density=20,col="red1"))
-title(main='90th percentile', line=tline)
-.axis
-plot(cplag975,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
-     ylim=lag.ylim,yaxt='n',col="red3", ci.arg=list(density=20,col="red3"))
-title(main='97.5th percentile', line=tline)
-.axis
-plot(cplag99,ylab="Percent change (%)",xlab="Lag (days)",lwd=2,cex.axis=.cexaxis,
-     ylim=lag.ylim,yaxt='n',col="red4", ci.arg=list(density=20,col="red4"))
-title(main='99th percentile', line=tline)
-.axis
-
 dev.off() # Save image + clear settings
 
 
@@ -411,16 +362,18 @@ dev.off() # Save image + clear settings
 ################################################################################
 
 .exposure.rr <- list()
-s2locations <- paste0(s2results,'Location level/')
-dir.create(paste0(s2results,'Location level')) # Warning if exists (doesn't replace)
+s2city <- paste0(s2results,'City level/')
+dir.create(paste0(s2results,'City level')) # Warning if exists (doesn't replace)
 
 # Loop over each strata. Plots are individualised
 for(i in ds.city) {
   .ds <- daily.ds[City==i] # dataset for each unique value
-  .name <- unique(.ds$stratum) # names with all of a, b and c together
+  .name <- unique(.ds$City) # names with all of a, b and c together
   
   if (is.numeric(cenpercountry)) {
     .cen <- quantile(temps[[i]], cenpercountry/100, na.rm=T)
+  } else if(cenpercountry=='ehf') {
+    .cen <- 0 # centred on 0
   } else {
     .cen <- exposure.mean[i] # mean
   }
@@ -441,29 +394,33 @@ for(i in ds.city) {
   # Values above or below centering value (for red/blue colour)
   .ind1 <- .pred2$predvar<=.cen
   .ind2 <- .pred2$predvar>=.cen
+  .ind85 <- .pred2$predvar>=exposure_ehf[i,2] # limit results to warm season by removing outcome data during cold season. Keeps temperature data intact for lag
+  .ind852 <- .pred2$predvar>=exposure_ehf[i,3] # limit results to warm season by removing outcome data during cold season. Keeps temperature data intact for lag
   
   # Overall cumulative exposure-response relationship plot
   # Could technically extract specific RRs values from RRfit/RRlow/RRhigh, but AF more useful as it covers a range of RRs
-  png(file = paste0(s2locations, .name,', Overall e-r.png'), res=gdpi, width=glength.3by3, height=glength.3by3) # plot location. File name based on heat metric
+  png(file = paste0(s2city, .name,', Overall e-r.png'), res=gdpi, width=glength.3by3, height=glength.3by3) # plot location. File name based on heat metric
   plot(.exposure.rr[[i]]$temp, .exposure.rr[[i]]$RRfit, type="n", ylim=rryaxis, lwd=2, col="white",
        main=i, ylab="Percent change (%)", xlab=paste(exposure.var,'(°C)'),
        cex.main=cexmain, cex.lab=cexlab, cex.axis=cexaxis, lab=c(6,5,7)) # main plot
   .erplot %<a-% { # save main plot additions
     polygon(c(.exposure.rr[[i]]$temp,rev(.exposure.rr[[i]]$temp)),c(.exposure.rr[[i]]$RRlow,rev(.exposure.rr[[i]]$RRhigh)), col="grey89", border=F) # 95% CI envelope
-    lines(.exposure.rr[[i]]$temp[.ind1],.exposure.rr[[i]]$RRfit[.ind1],col=4,lwd=2); # cold, left of cen
-    lines(.exposure.rr[[i]]$temp[.ind2],.exposure.rr[[i]]$RRfit[.ind2],col=2,lwd=2); # hot, right of cen
+    lines(.exposure.rr[[i]]$temp[.ind1],.exposure.rr[[i]]$RRfit[.ind1],col=hwcolours[1],lwd=2); # cold, left of cen
+    lines(.exposure.rr[[i]]$temp[.ind2],.exposure.rr[[i]]$RRfit[.ind2],col=hwcolours[3],lwd=2); # heatwave
+    lines(.exposure.rr[[i]]$temp[.ind85],.exposure.rr[[i]]$RRfit[.ind85],col=hwcolours[4],lwd=2); # severe heatwave
+    lines(.exposure.rr[[i]]$temp[.ind852],.exposure.rr[[i]]$RRfit[.ind852],col=hwcolours[5],lwd=2); # extreme heatwave
     abline(h=0) # horizontal line
   }
   .lines %<a-% { #  vertical lines
     abline(v=.cen,lty=2); # centering value
-    abline(v=c(exposure[i,c("2.5%","97.5%")]),lty=3) # extreme percentiles
+    abline(v=c(exposure_ehf[i,c(2,3)]),lty=3)
   }
   .erplot # insert main plot additions
   .lines # insert lines
   dev.off() # Save image + clear settings
   
   # Plot + histogram (slice plot)
-  png(file = paste0(s2locations, 'z', .name,', Overall e-r.png'), res=gdpi, width=glength.3by3, height=glength.3by3) # plot location. File name based on heat metric
+  png(file = paste0(s2city, 'z', .name,', Overall e-r.png'), res=gdpi, width=glength.3by3, height=glength.3by3) # plot location. File name based on heat metric
   plot(.exposure.rr[[i]]$temp, .exposure.rr[[i]]$RRfit, type="n", ylim=c(rryaxis[1]-50,rryaxis[2]), lwd=2, col="white", ylab="Percent change (%)", xlab='',
        mgp=c(1.3,0.4,0), cex.lab=cexlab*0.7, cex.axis=cexaxis*0.7, yaxt='n', axes=F) # main plot, but no axes # cexlab*.75, cexaxis*.75
   .erplot
@@ -485,17 +442,19 @@ for(i in ds.city) {
 }
 
 # Loop over each strata. Plots are combined
-png(file = paste0(s2locations, 'zOverall e-rs.png'), res=350, width=1700, height=2400) # plot location # paste0('/Users/MatthewBorg/', 'zOverall e-rs.png')
-layout(matrix(c(1:14,0),ncol=3,byrow=T))
-par(mfrow=c(5,3), mar=c(2.1,2.2,1,1.5), oma=c(0,0,0,0), mgp=c(1.5,0.4,0), las=1) # 4*4, space between borders and text
+png(file = paste0(s2city, 'zOverall e-rs.png'), res=350, width=1700, height=2400) # plot location # paste0('/Users/MatthewBorg/', 'zOverall e-rs.png')
+layout(matrix(c(1:7,0),ncol=2,byrow=T))
+par(mfrow=c(4,2), mar=c(2.1,2.2,1,1.5), oma=c(0,0,0,0), mgp=c(1.5,0.4,0), las=1) # 4*4, space between borders and text
 
 for(i in ds.city) {
   .ds <- daily.ds[City==i] # dataset for each unique value
-  .name <- unique(.ds$stratum) # names with all of a, b and c together
+  .name <- unique(.ds$City) # names with all of a, b and c together
   # .name <- str_replace(str_replace(str_replace(str_replace(str_replace(str_replace(str_replace(str_replace(str_replace(.name, ',',''), 'Adelaide','Ade'), 'Brisbane','Bri'), 'Canberra','Can'), 'Darwin','Dar'), 'Hobart','Hob'), 'Melbourne','Mel'), 'Perth','Per'), 'Sydney','Syd')
   
   if (is.numeric(cenpercountry)) {
     .cen <- quantile(temps[[i]], cenpercountry/100, na.rm=T)
+  } else if(cenpercountry=='ehf') {
+    .cen <- 0 # centred on 0
   } else {
     .cen <- exposure.mean[i] # mean
   }
@@ -509,17 +468,22 @@ for(i in ds.city) {
   # Values above or below centering value (for red/blue colour)
   .ind1 <- .pred2$predvar<=.cen
   .ind2 <- .pred2$predvar>=.cen
+  .ind85 <- .pred2$predvar>=exposure_ehf[i,2] # limit results to warm season by removing outcome data during cold season. Keeps temperature data intact for lag
+  .ind852 <- .pred2$predvar>=exposure_ehf[i,3] # limit results to warm season by removing outcome data during cold season. Keeps temperature data intact for lag
+  
   
   # Overall cumulative exposure-response relationship plot
   .erplot %<a-% { # save main plot additions
     polygon(c(.exposure.rr[[i]]$temp,rev(.exposure.rr[[i]]$temp)),c(.exposure.rr[[i]]$RRlow,rev(.exposure.rr[[i]]$RRhigh)), col="grey89", border=F) # 95% CI envelope
-    lines(.exposure.rr[[i]]$temp[.ind1],.exposure.rr[[i]]$RRfit[.ind1],col=4,lwd=2); # cold, left of cen
-    lines(.exposure.rr[[i]]$temp[.ind2],.exposure.rr[[i]]$RRfit[.ind2],col=2,lwd=2); # hot, right of cen
+    lines(.exposure.rr[[i]]$temp[.ind1],.exposure.rr[[i]]$RRfit[.ind1],col=hwcolours[1],lwd=2); # cold, left of cen
+    lines(.exposure.rr[[i]]$temp[.ind2],.exposure.rr[[i]]$RRfit[.ind2],col=hwcolours[3],lwd=2); # heatwave
+    lines(.exposure.rr[[i]]$temp[.ind85],.exposure.rr[[i]]$RRfit[.ind85],col=hwcolours[4],lwd=2); # severe heatwave
+    lines(.exposure.rr[[i]]$temp[.ind852],.exposure.rr[[i]]$RRfit[.ind852],col=hwcolours[5],lwd=2); # extreme heatwave
     abline(h=0) # horizontal line
   }
   .lines %<a-% { #  vertical lines
     abline(v=.cen,lty=2); # centering value
-    abline(v=c(exposure[i,c("2.5%","97.5%")]),lty=3) # extreme percentiles
+    abline(v=c(exposure_ehf[i,c(2,3)]),lty=3)
   }
   
   # Plot + histogram (slice plot)
@@ -549,148 +513,49 @@ exposure.rr <- do.call(rbind,.exposure.rr) # convert to df
 exposure.rr <- cbind(gsub("\\..*","",rownames(exposure.rr)), exposure.rr) # combine with rownames formatted to remove .
 rownames(exposure.rr) <- NULL
 colnames(exposure.rr) <- c('City',exposure.var,'RRfit','RRlow','RRhigh')
-write.csv(exposure.rr, file=paste0(s2locations, 'Exposure values RR.csv'), na='', row.names=F) # create csv file
+write.csv(exposure.rr, file=paste0(s2results, 'Exposure values RR.csv'), na='', row.names=F) # create csv file
 
 
 
 ################################################################################
-# CITY AND OUTORIN OVERALL E-R CURVES
+# CITY OVERALL E-R CURVES
 ################################################################################
 
-### Full meta-analysis with random-predictor. BLUPs will be conditional expectations given the random effects (Sera et al 2019)
+# Plot: Overall cumulative exposure-response association (all exposure values, lag reduced)
 
-  for(j in by.vars3) { # City and outorin, but by.vars3 is just 'City' here
-    # j <- 'City'
-    mixv_j <- mixmeta(coef~1, vcov, random=~1|by.vars.ds[,get(j)], data=by.vars.ds) # BLUP will be conditionally dependent on random predictor. Usage of predictor like this identical to City (city results identical for both indoor and outdoor) or outorin (outorin results identical for all cities)
-    if(j=='City') {
-      jstrat_no <- seq(0,length.ds.city-2,by=2)+1 # every odd number
-      ds.cityj <- word(unique(ds.city))[jstrat_no] # new ds.city (technically
-    } else {
-      jstrat_no <- c(1:2)
-      ds.cityj <- word(unique(ds.city), start=-1L)[jstrat_no]
-    }
-    blups_j <-  blup(mixv_j, vcov=T)[jstrat_no] # BLUPs for each j
-    
-    for(l in jstrat_no) { # repeat for each strata (city or out/in)
-      m <- which(jstrat_no==l) # ordering of l, instead of l itself, which is needed for extracting blups
-      .name <- ds.cityj[m] # get name for plot
-      mvpred_jl <- list('fit'=blups_j[[m]][["blup"]], 'vcov'=blups_j[[m]][["vcov"]]) # predictions are blups, instead of entire mixmeta. give same names as predict.mixmeta
-      exposure.jl.mean <- exposure.by[l,] # mean for relevant strata already prepared
-      
-      # Define exposure percentile with lowest incidence of injuries
-      bvarjl <- crossbasis(exposure.jl.mean, argvar=list(fun=espline, knots=exposure.jl.mean[paste0(eknots*100)]), arglag=li_arglag) # crossbasis
-      bvar1jl <- bvarjl%*%mvpred_jl$fit # multiply coefficients for combined effect
-      bvar1jl <- bvar1jl[order(bvar1jl[,1]),, drop=F] # sort in ascending order (not required, but easier for visualisation
-      bvar1jl <- bvar1jl[between(rownames(bvar1jl), cenpen.minmax[1], cenpen.minmax[2]),] # exclude percentiles outside range for selecting optimal percentile, converts to vector
-      cenindjl <- as.numeric(names(bvar1jl[which.min(bvar1jl)])) # exposure percentile with lowest incidence of outcome (optimal percentile)
-      
-      # Define centering percentile for country
-      if (is.null(cenpen)) {
-        cenperjl <- pmin(pmax(predper[cenindjl],cenpen.minmax[1]),cenpen.minmax[2]) # min/max is 10th/90th. chooses 10, as incidence lowest at 10
-      } else if(is.numeric(cenpen)) {
-        cenperjl <- cenpen # use defined centering value
-      } else if(cenpen %in% c('mean','Mean','average','Average')) {
-        cenperjl <- 'mean' # to be used as code for mean
-      }
-      
-      if (is.numeric(cenperjl)) {
-        centrejl <- exposure.j.mean[paste0(cenperjl)] # centered prediction (from corresponding percentile)
-      } else {
-        centrejl <- sum(sapply(temps[l], sum)) / sum(sapply(temps[l], length)) # mean exposure across all strata
-      }
-      cpjl <- crosspred(bvarjl, coef=mvpred_jl$fit, vcov=mvpred_jl$vcov, model.link="log", at=exposure.jl.mean, cen=centrejl)
-      
-      # Plot: Overall cumulative exposure-response association (all exposure values, lag reduced)
-      .yaxis.jl <- bigvaryaxis/100+1 # adjusting axis from % to RR
-      
-      png(file = paste0(s2locations, .name, ' Overall e-r.png'), res=gdpi, width=glength, height=glength) # plot location. File name based on heat metric
-      plot(cpjl,lwd=2,col="white",axes=F, ylab=str_remove_all(paste0('Percent change in ',tolower(outcome.var)," (%)"),'\\(000s\\)'),
-           xlab='', ylim=.yaxis.jl, mgp=c(2.5,0.5,0))
-      title(main=.name, line=nline) # closer to plot
-      title(xlab=paste0(exposure.var," (°C)"), line=3.2) # xtitle, moved away from graph
-      ind1 <- cpjl$predvar<=cpjl$cen
-      ind2 <- cpjl$predvar>=cpjl$cen
-      lines(cpjl$predvar[ind1],cpjl$allRRfit[ind1],col=4,lwd=2)
-      lines(cpjl$predvar[ind2],cpjl$allRRfit[ind2],col=2,lwd=2)
-      axis(1, at=exposure.jl.mean[indlab], labels=predper[indlab], cex.axis=0.8, gap.axis=0.1, mgp=c(2.5,0.3,0))
-      mtext('Percentile', 1, at=min(cpjl$predvar)-0.5, outer=F, cex=0.8, adj=1)
-      axis(1, at=seq(ceiling(min(cpjl$predvar)),max(cpjl$predvar),by=1), cex.axis=0.8, line=xline2, mgp=c(2.5,0.3,0))
-      mtext('Value', 1, at=min(cpjl$predvar)-0.5, outer=F, cex=0.8, line=xline2, adj=1)
-      axis(2,cex.axis=0.8, at=seq(.yaxis.jl[1],.yaxis.jl[2], by=bigvarby/100), labels=seq(from=bigvaryaxis[1], to=bigvaryaxis[2], by=bigvarby)) 
-      abline(v=cpjl$cen,lty=2) # centre line
-      abline(v=c(exposure.jl.mean[c("2.5","97.5")]), lty=c(3,3)) # correspond to mean and extreme lines
-      dev.off() # Save image + clear settings
-    }
-  }
-  
-  
-  ### Full meta-analysis with random-predictor. BLUPs will be conditional expectations given the random effects (Sera et al 2019)
-  # outcome.exposure.loc.bv
-  png(file = paste0(s2locations, 'Overall e-rs.png'), res=gdpi, width=glength.3by3, height=glength.3by3) # plot location. File name based on heat metric
-  par(mfrow=c(3,3), mar=c(3,2.5,1,1), oma=c(0,0,0,0), mgp=c(1.5,0.5,0)) # 3*3, space between borders and text
-    bigvarc <- 0 # default marker for recordPlot()
-    for(j in rev(by.vars3)) { # City and outorin
-      # j <- 'City'
-      mixv_j <- mixmeta(coef~1, vcov, random=~1|by.vars.ds[,get(j)], data=by.vars.ds) # BLUP will be conditionally dependent on random predictor. Usage of predictor like this identical to City (city results identical for both indoor and outdoor) or outorin (outorin results identical for all cities)
-      if(j=='City') {
-        jstrat_no <- seq(0,length.ds.city-2,by=2)+1 # every odd number
-        ds.cityj <- word(unique(ds.city))[jstrat_no] # new ds.city (technically
-      } else {
-        jstrat_no <- c(1:2)
-        ds.cityj <- word(unique(ds.city), start=-1L)[jstrat_no]
-      }
-      blups_j <-  blup(mixv_j, vcov=T)[jstrat_no] # BLUPs for each j
-      
-      for(l in jstrat_no) { # repeat for each strata (city or out/in)
-        m <- which(jstrat_no==l) # ordering of l, instead of l itself, which is needed for extracting blups
-        .name <- ds.cityj[m] # get name for plot
-        mvpred_jl <- list('fit'=blups_j[[m]][["blup"]], 'vcov'=blups_j[[m]][["vcov"]]) # predictions are blups, instead of entire mixmeta. give same names as predict.mixmeta
-        exposure.jl.mean <- exposure.by[l,] # mean for relevant strata already prepared
-        
-        # Define exposure percentile with lowest incidence of injuries
-        bvarjl <- crossbasis(exposure.jl.mean, argvar=list(fun=espline, knots=exposure.jl.mean[paste0(eknots*100)]), arglag=li_arglag) # crossbasis
-        bvar1jl <- bvarjl%*%mvpred_jl$fit # multiply coefficients for combined effect
-        bvar1jl <- bvar1jl[order(bvar1jl[,1]),, drop=F] # sort in ascending order (not required, but easier for visualisation
-        bvar1jl <- bvar1jl[between(rownames(bvar1jl), cenpen.minmax[1], cenpen.minmax[2]),] # exclude percentiles outside range for selecting optimal percentile, converts to vector
-        cenindjl <- as.numeric(names(bvar1jl[which.min(bvar1jl)])) # exposure percentile with lowest incidence of outcome (optimal percentile)
-        
-        # Define centering percentile for country
-        if (is.null(cenpen)) {
-          cenperjl <- pmin(pmax(predper[cenindjl],cenpen.minmax[1]),cenpen.minmax[2]) # min/max is 10th/90th. chooses 10, as incidence lowest at 10
-        } else if(is.numeric(cenpen)) {
-          cenperjl <- cenpen # use defined centering value
-        } else if(cenpen %in% c('mean','Mean','average','Average')) {
-          cenperjl <- 'mean' # to be used as code for mean
-        } 
-        
-        if (is.numeric(cenperjl)) {
-          centrejl <- exposure.j.mean[paste0(cenperjl)] # centered prediction (from corresponding percentile)
-        } else {
-          centrejl <- sum(sapply(temps[l], sum)) / sum(sapply(temps[l], length)) # mean exposure across all strata
-        }
-        
-        cpjl <- crosspred(bvarjl, coef=mvpred_jl$fit, vcov=mvpred_jl$vcov, model.link="log", at=exposure.jl.mean, cen=centrejl)
-        .yaxis.jl <- bigvaryaxis/100+1 # adjusting axis from % to RR
-        
-        bigvarc <- bigvarc + 1 # change recordPlot marker
-        plot(cpjl,lwd=2,col="white",ylab="Percent change (%)", # str_remove_all(paste0('RR for ',tolower(outcome.var)),'\\(000s\\)') # 'Relative risk'
-             xlab='', ylim=.yaxis.jl, yaxt='n')
-        title(main=.name, line=0.2) # closer to plot
-        title(xlab=paste0(exposure.var," (°C)"), line=1.5) # xtitle, moved away from graph
-        ind1 <- cpjl$predvar<=cpjl$cen
-        ind2 <- cpjl$predvar>=cpjl$cen
-        lines(cpjl$predvar[ind1],cpjl$allRRfit[ind1],col=4,lwd=2)
-        lines(cpjl$predvar[ind2],cpjl$allRRfit[ind2],col=2,lwd=2)
-        axis(2,cex.axis=0.8, at=seq(.yaxis.jl[1],.yaxis.jl[2], by=bigvarby/100), labels=seq(from=bigvaryaxis[1], to=bigvaryaxis[2], by=bigvarby), las=1)
-        abline(v=cpjl$cen,lty=2) # centre line
-        abline(v=c(exposure.jl.mean[c("2.5","97.5")]), lty=c(3,3)) # correspond to mean and extreme lines
-        assign(paste0('bigvar',bigvarc), recordPlot()) # assign recordPlot based on marker
-      }
-    }
-  dev.off() 
+png(file = paste0(s2city, 'City vs BLUP.png'), res=gdpi, width=glength, height=glength) # plot location. File name based on heat metric
+par(mar=c(4.1,3,1.6,0)) # inner graph margins, as much whitespace removed as possible
+layout(matrix(1:2,1,2))
+
+plot(cp,lwd=2,yaxt='n', ylim=c(min(oer.yaxis.blup),max(oer.yaxis.blup)), xlab='', ylab='', ci="n") # str_remove_all(paste0('Percent change in ',tolower(outcome.var)," (%)"),'\\(000s\\)') # ylim=c(floor(min(cp[["allRRfit"]])*10)/10-0.05, ceiling(max(cp[["allRRfit"]])*10)/10+0.05)
+title(xlab=paste(exposure.var,'(°K)'), line=2) 
+abline(v=c(cp$cen), lty=2, lwd=0.8) # severe and extreme heatwaves
+# abline(v=c(cp$cen, exposure_ehf_overall[2:3]), lty=c(2,3,3), lwd=c(0.8,0.8,0.8)) # severe and extreme heatwaves
+axis(2, at=oer.yaxis.blup, labels=(oer.yaxis.blup-1)*100, las=1, mgp=c(2.5,0.8,0))
+for(i in ds.city) {
+  lines(crosspred(bvar,coef=coef[i,],vcov=vcov[[i]], model.link="log",cen=centre),lty=6,lwd=1.5,col=oer.colours[which(ds.city==i)])
+} 
+title(main='Study-specific', line=nline) # title, move closer to graph
+title(ylab='Percent change (%)', line=2.1) # title, move closer to graph
+legend(legend=ds.city,'bottomright',col=oer.colours, lty=1, cex=0.45)
+
+plot(cp,lwd=2,yaxt='n', ylim=c(min(oer.yaxis.blup),max(oer.yaxis.blup)), xlab='', ylab='', ci="n") # str_remove_all(paste0('Percent change in ',tolower(outcome.var)," (%)"),'\\(000s\\)') # ylim=c(floor(min(cp[["allRRfit"]])*10)/10-0.05, ceiling(max(cp[["allRRfit"]])*10)/10+0.05)
+title(xlab=paste(exposure.var,'(°K)'), line=2) 
+abline(v=c(cp$cen), lty=2, lwd=0.8) # severe and extreme heatwaves
+# abline(v=c(cp$cen, exposure_ehf_overall[2:3]), lty=c(2,3,3), lwd=c(0.8,0.8,0.8)) # severe and extreme heatwaves
+axis(2, at=oer.yaxis.blup, labels=(oer.yaxis.blup-1)*100, las=1, mgp=c(2.5,0.8,0))
+for(i in ds.city) {
+  lines(crosspred(bvar,coef=blups[[which(ds.city==i)]]$blup, vcov=blups[[which(ds.city==i)]]$vcov, model.link="log",cen=centre),lty=6,lwd=1.5,col=oer.colours[which(ds.city==i)])
+} 
+title(main='BLUPs', line=nline) # title, move closer to graph
+title(ylab='Percent change (%)', line=2.1) # title, move closer to graph
+legend(legend=ds.city,'bottomright',col=oer.colours, lty=1, cex=0.45)
+
+dev.off() # Save image + clear settings
 
 
 
 ######################### END ############################
 ######################### END ############################
+
   
