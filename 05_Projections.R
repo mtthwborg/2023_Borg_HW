@@ -219,6 +219,7 @@
 # ### Save
 # ccia_future2 <- ccia_future2[City %in% c('Melbourne','Sydney')] # for this reproducible example, only Melbourne and Sydney
 # ccia_future2 <- ccia_future2[Model %in% c('ACCESS1-0','CanESM2')] # for this reproducible example, only two GCMs
+# ccia_future2[,':='(humidex=NULL,humidex.max=NULL,wbt=NULL,di=NULL,wbgtb=NULL,wbgtb.max=NULL,steadman.id=NULL,steadman.id.max=NULL)] # if these variables exist, remove them
 # save(ccia_future2, file='ccia_future2.rda')
 load(file='ccia_future2.rda')
 
