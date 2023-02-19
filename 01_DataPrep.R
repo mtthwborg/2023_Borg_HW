@@ -20,6 +20,7 @@ library(splines) # Splines
 library(mixmeta) # Multivariate meta-analysis
 library(FluMoDL) # Compute attributable risk
 library(weathermetrics) # Modified version of heat index
+library(MASS) # mnvnorm(), only used for projections
 
 # Graphing
 library(pryr) # %<a-%
@@ -28,7 +29,7 @@ rm(list=ls())   # remove existing variables
 
 
 ##################################################
-### Prepare meteorological data and save as .rda file
+### Prepare retrospective meteorological data and save as .rda file
 ###   This step is already done for you and is commented out
 ###   However, the code is included to demonstrate how the original data was extracted and edited
 ##################################################
@@ -70,12 +71,6 @@ rm(list=ls())   # remove existing variables
 # ### Combine max and min
 # brambilla.all <- merge(brambilla.max, brambilla.min, by=c('Date','City'), all=T, suffixes = c(".max",".min"))
 # brambilla.all[,rh.ave := rh.max*rh.min/2] # Average relative humidity for supplementary analysis
-# 
-# 
-# 
-# ##################################################
-# ### EHF
-# ##################################################
 # 
 # ### EHF variables
 # ## Use City == shift(City, -x) to ensure that same city is used, but this misses x rows based on date and lag (start, Adelaide) /lead (end, Sydney)
@@ -137,6 +132,7 @@ rm(list=ls())   # remove existing variables
 # save(brambilla.all, brambilla_ehfr, file='brambilla.all.rda')
 
 load(file='brambilla.all.rda') # Climate data
+
 
 
 ##################################################

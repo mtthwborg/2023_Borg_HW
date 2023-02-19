@@ -101,6 +101,15 @@ oer.colours <- c('red','orange','gold','green','cyan','steelblue2','purple')
 
 
 ##################################################
+### ADJUST THESE PARAMETERS TO ADJUST PROJECTIONS
+##################################################
+
+# If 0, no adaptation. Use DMT95 from from baseline period
+# If 1, use DMT95 from current period (adaptation to current climate)
+adapt <- 0
+
+
+##################################################
 ### Loop to run 03_AnalysisStage1.r and 04_AnalysisStage2.r for both outcome variables
 ### Alternatively, can change the outcome variable (outcome.var) manually above and re-run analysis
 ##################################################
@@ -113,9 +122,20 @@ for (outcome.var in c('Number of OIIs',"Total costs","Costs per OII")) { # Loop 
   source('03_AnalysisStage1.r')
   source('04_AnalysisStage2.r')
   gc()
+  for(outcome.var in c('Number of OIIs',"Total costs")) { # only run projected results if main analysis
+    for (.adapt in c(0,1)) { 
+      adapt <- .adapt
+      source('05_Projections.r')
+      gc()
+    }
+  }
 }
-proc.time()[3]-time # Report time takens
-# Loop time taken on Apple M1 Max (Darwin Kernel Version 21.6.0) was approximately 8 seconds
+proc.time()[3]-time # Report time taken
+
+# Each iteration of Stage 1 and 2 analysis collectively take about 8 seconds on a Apple M1 Max (Darwin Kernel Version 21.6.0)
+# Each iteration of Projections take about 1 minute on a Apple M1 Max (Darwin Kernel Version 21.6.0)
+# This loop in total takes about 210-240 seconds on a Apple M1 Max (Darwin Kernel Version 21.6.0)
+
 
 
 

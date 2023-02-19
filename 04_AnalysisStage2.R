@@ -161,19 +161,6 @@ results.short[predprer.short.rep,2:4] <- c(cp$allRRfit[predper %in% predper.shor
                                            cp$allRRhigh[predper %in% predper.short]) # column 4 is RRhigh
 results.short <- round(results.short, digits=3)
 
-# # All percentiles
-# predprer.rep <- 1:length(predper) # number of percentiles
-# results <- matrix(NA, nrow=length(predper), ncol=4) # create empty matrix of results
-# results[,1] <- predper # 1st column is percentile values
-# results[predprer.rep,2:4] <- c(cp$allRRfit,cp$allRRlow,cp$allRRhigh) # column 2/3/4 is RR/RRlow/RRhigh corresponding to each percentile (row), 
-# results[predprer.rep,2:4] <- matrix(c(cp$allRRfit,cp$allRRlow,cp$allRRhigh), ncol=3) # column 2/3/4 is RR/RRlow/RRhigh corresponding to each percentile (row), 
-# results <- round(results, digits=3)
-# 
-# 
-# # Export results
-# colnames(results) <- c('Percentile','RR','RRlow','RRhigh') # column names
-# write.csv(results, file=paste0(s2results,'RR (95% CI).csv'), na='', row.names=F) # create csv file
-
 
 
 ###############################################################################

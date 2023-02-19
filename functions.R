@@ -57,3 +57,12 @@ round.fn <- function(x, round=0,trim=T,big.mark=",",significant=NULL, justify=c(
   .x <- format(.x, nsmall=round, trim=trim, big.mark=big.mark, digits=significant,justify=justify,width=width,na.encode=na.encode,scientific=scientific,big.interval=big.interval,small.mark=small.mark,small.interval=small.interval,decimal.mark=decimal.mark,zero.print=zero.print,drop0trailing=drop0trailing,...)
   return(.x)
 }
+
+
+## Calculate day of year, but 29th Feb assigned 60, 1 Mar assigned 61 regardless of whether leap year and then continue until 366. This ensures leap years are done on same order as non-leap years
+# Requires lubridate
+# Source: https://stackoverflow.com/questions/54946395/counting-days-of-the-year-with-leap-years
+leap.ever.year.fn <- function(x) {
+  ifelse(yday(x) > 59 & leap_year(x) == FALSE, yday(x) + 1, yday(x))
+}
+
