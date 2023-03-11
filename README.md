@@ -1,5 +1,5 @@
 # Overview
-This repository contains R code and datasets that together provide a reproducible example to simulate the main methodology and results for the retrospective anaysis from Borg et al. 2023, *Environmental Health Perspectives*, Current and projected heatwave-attributable occupational injuries, illnesses, and associated economic burden in Australia: a national time-series analysis. These files can be downloaded after clicking on the green button *Code* at this GitHub repository.
+This repository contains R code and datasets that together provide a reproducible example to simulate the main methodology and results for the retrospective anaysis from Borg et al. 2023, *International Journal of Epidemiology*, Current and projected heatwave-attributable occupational injuries, illnesses, and associated economic burden in Australia: a national time-series analysis. These files can be downloaded after clicking on the green button *Code* at this GitHub repository.
 
 
 # System Requirements
