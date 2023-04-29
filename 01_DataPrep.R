@@ -37,11 +37,11 @@ rm(list=ls())   # remove existing variables
 # Source: Brambilla et al. 2022, Data in Brief, https://doi.org/10.1016/j.dib.2022.108291
 
 # ## Extract data
-# 
+#
 # brambilla.loc <- paste0("your_directory_with_the_files") # Location of Brambilla et al. 2022 Appendix 1 Climate_files
 # brambilla.loc <- paste0("/Users/MatthewBorg/Library/CloudStorage/Box-Box/Data original/Brambilla 2022/Appendix 1/Climate_files/") # Location of Brambilla et al. 2022 Appendix 1 Climate_files
 # brambilla.loc <- paste0("C:/Users/a1210385/Box/Data original/Brambilla 2022/Appendix 1/Climate_files/") # Location of Brambilla et al. 2022 Appendix 1 Climate_files
-# 
+#
 # brambilla.data <- list() # Save data in list
 # for(a in c('Melbourne','Sydney')) {
 #   for(b in 1:30) { # 1991-2020, one b per year. This forms a 30-year period for the EHF reference threshold
@@ -49,29 +49,29 @@ rm(list=ls())   # remove existing variables
 #     else if (a=='Melbourne') {brambilla.data[[paste0(a,b)]] <- cbind('City'=a, 'Year'=b+1990, read_excel(paste0(brambilla.loc,'6_Melbourne_Climatedata.xlsx'), sheet=b)[c(1:6,8:10)])}
 #   }
 # }
-# 
+#
 # brambilla <- do.call(rbind.data.frame, brambilla.data) # Combine list into a data frame
 # brambilla <- as.data.table(brambilla) # Save as data.table. This will remove row names
 # colnames(brambilla) <- c('City','Year','Month','Day','Hour','temp','rh','ws','ap','dnr','dhr')
 # brambilla[,':='(ws=NULL,ap=NULL,dnr=NULL,dhr=NULL)] # Removing unneeded variables calculation, retaining humidity metrics for sensitivity analyses and components of WBGT
-# 
+#
 # ## Calculate het index
 # source('heat.index2.r') # weathermetrics::heat.index modified with a 79 threshold changed to 80 and no rounding
 # brambilla[,hi := heat.index2(t=temp, rh=rh, temperature.metric='celsius', round=9999999),] # Heat index. Use self-code that allows rounding to >2 digits
-# 
+#
 # ## Obtain daily metrics at time of maximum temperature using BoM classification
 # brambilla[,predate:=ISOdate(Year, Month, Day, Hour)] # Date
 # brambilla[,Date:=as.Date(predate-9*3600+1)] # Bureau of Meteorology (BoM) measuring period for maximum temperature is 9am on same day to 9am next day
 # brambilla.max <- setDT(brambilla)[Date!='1990-12-31', .SD[which.max(temp)], by=c('Date','City')] # Metrics at time of maximum temperature
 # brambilla[,Date:=as.Date(predate+15*3600-1)] # Bureau of Meteorology (BoM) measuring period for maximum temperature is 9am on previous day to 9am same day
-# brambilla.min <- setDT(brambilla)[Date!='1990-12-31', .SD[which.max(temp)], by=c('Date','City')] # Metrics at time of minimum temperature
+# brambilla.min <- setDT(brambilla)[Date!='1990-12-31', .SD[which.min(temp)], by=c('Date','City')] # Metrics at time of minimum temperature
 # brambilla.max[,':='(Year=NULL,Month=NULL,Day=NULL,Hour=NULL,predate=NULL)] # Removing unneeded variables calculation, retaining humidity metrics for sensitivity analyses and components of WBGT
 # brambilla.min[,':='(Year=NULL,Month=NULL,Day=NULL,Hour=NULL,predate=NULL)] # Removing unneeded variables calculation, retaining humidity metrics for sensitivity analyses and components of WBGT
-# 
+#
 # ### Combine max and min
 # brambilla.all <- merge(brambilla.max, brambilla.min, by=c('Date','City'), all=T, suffixes = c(".max",".min"))
 # brambilla.all[,rh.ave := rh.max*rh.min/2] # Average relative humidity for supplementary analysis
-# 
+#
 # ### EHF variables
 # ## Use City == shift(City, -x) to ensure that same city is used, but this misses x rows based on date and lag (start, Adelaide) /lead (end, Sydney)
 # setorder(brambilla.all, City, Date)
@@ -79,7 +79,7 @@ rm(list=ls())   # remove existing variables
 # brambilla.all <- brambilla.all[Date < '2020-12-31',] # now that min_lead is calculated, remove the last day of the study period, as it lacks enough data to be calculated for max T
 # brambilla.all[, temp_ehf := rowMeans(.SD), .SDcols = c("temp.max","temp.min_lead")]
 # brambilla.all[, hi_ehf := rowMeans(.SD), .SDcols = c("hi.max","min_hi_lead")]
-# 
+#
 # for(i in unique(brambilla.all$City)) {
 #   brambilla.all[City==i, dmt3 := rollmean(temp_ehf, 3, fill=NA, align='right')]
 #   brambilla.all[City==i, dmtp30 := (shift(temp_ehf,1+2) + shift(temp_ehf,2+2) + shift(temp_ehf,3+2) + shift(temp_ehf,4+2) + shift(temp_ehf,5+2)
@@ -124,10 +124,10 @@ rm(list=ls())   # remove existing variables
 # brambilla.all[, ehff := ehisigf * pmax(1, ehiacclf)] # EHF forward
 # brambilla.all[, ehf.hi := ehisig.hi * pmax(1, ehiaccl.hi)] # EHF HI
 # brambilla.all[, ehff.hi := ehisigf.hi * pmax(1, ehiacclf.hi)] # EHF forward EHF
-# 
+#
 # ## EHF DMT95 reference values
 # brambilla_ehfr <- unique(brambilla.all[, .(City,dmt95,dmhi95)])
-# 
+#
 # ### Save
 # save(brambilla.all, brambilla_ehfr, file='brambilla.all.rda')
 
@@ -165,7 +165,7 @@ by.vars1 <- c('Year', replace(by.vars, by.vars=="Date", 'Month'))
 ### Make public holiday data long
 ##################################################
 
-load(file='Public holidays.rda') 
+load(file='Public holidays.rda')
 public.holidays <- melt(public.hols, id.vars=c('Date','Public holiday'),
                         measure.vars=c('Adelaide','Brisbane','Canberra','Darwin','Hobart','Melbourne','Perth','Sydney'),
                         variable.name='City', value.name='phol')
@@ -241,7 +241,7 @@ daily.ds[Month==12 & Day==31, shol:=2] # NYE
 daily.ds[Month==1 & Day==1, shol:=3] # NYD
 daily.ds[Month==1 & Day %in% c(2:4), shol:=4] # 2nd to 4th January
 daily.ds[City=='Sydney' & str_detect(`Public holiday`, 'Australia Day'), shol:=5] # Australia Day has a public celebration at the Sydney Opera House
-day.before.melbourne.cup <- as.Date(c("2004-11-01","2005-10-31","2006-11-06","2007-11-05","2008-11-03","2009-11-02","2010-11-01","2011-10-31","2012-11-05","2013-11-04","2014-11-03","2015-11-02","2016-10-31","2017-11-06","2018-11-05","2019-11-04","2020-11-02","2021-11-01")) # List of days before Melboure Cup from 2004 to 2021 
+day.before.melbourne.cup <- as.Date(c("2004-11-01","2005-10-31","2006-11-06","2007-11-05","2008-11-03","2009-11-02","2010-11-01","2011-10-31","2012-11-05","2013-11-04","2014-11-03","2015-11-02","2016-10-31","2017-11-06","2018-11-05","2019-11-04","2020-11-02","2021-11-01")) # List of days before Melboure Cup from 2004 to 2021
 daily.ds[City=='Melbourne' & Date %in%  day.before.melbourne.cup, shol:=6] # limit results to warm season by removing outcome data during cold season. Keeps temperature data intact for lag
 daily.ds[, shol := factor(shol, labels=c('No','Xmas period','NYE','NYD','2-4 Jan','Australia Day','Day before Melbourne Cup'))] # Make sphol an unordered factor
 

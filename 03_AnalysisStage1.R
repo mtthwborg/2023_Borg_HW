@@ -108,7 +108,7 @@ dir.create(paste0(base,'/Stage 2')) # Warning if exists (doesn't replace)
 
 # Restrict to study period, retaining lagged climate data prior to study period to use for DLNMs
 daily.ds <- daily.ds[Date %in% seq(as.Date('2005-07-01')-lmax, as.Date('2018-06-30'), by="day")]
-daily.ds[Date < '2005-07-01', (outcome.var):=NA] # ignore outcome in lagged days prior to stud period
+daily.ds[Date < '2005-07-01', (outcome.var):=NA] # ignore outcome in lagged days prior to study period
 
 # Limit results to warm season by removing outcome data during cold season. Keeps temperature data intact for lag
 daily.ds[Month %in% 4:9, (outcome.var):=NA]
