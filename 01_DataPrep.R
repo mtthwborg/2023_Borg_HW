@@ -70,7 +70,7 @@ rm(list=ls())   # remove existing variables
 #
 # ### Combine max and min
 # brambilla.all <- merge(brambilla.max, brambilla.min, by=c('Date','City'), all=T, suffixes = c(".max",".min"))
-# brambilla.all[,rh.ave := rh.max*rh.min/2] # Average relative humidity for supplementary analysis
+# brambilla.all[,rh.ave := (rh.max+rh.min)/2] # Average relative humidity for supplementary analysis
 #
 # ### EHF variables
 # ## Use City == shift(City, -x) to ensure that same city is used, but this misses x rows based on date and lag (start, Adelaide) /lead (end, Sydney)
