@@ -1,5 +1,5 @@
 # Overview
-This repository contains R code and datasets that together provide a reproducible example to simulate the main methodology and results for the retrospective anaysis from Borg et al. 2023, *Global Environmental Change*, Current and projected heatwave-attributable occupational injuries, illnesses, and associated economic burden in Australia. These files can be downloaded after clicking on the green button *Code* at this GitHub repository.
+This repository contains R code and datasets that together provide a reproducible example to simulate the main methodology and results for the retrospective anaysis from Borg et al. 2023, *Environmental Research*, Current and projected heatwave-attributable occupational injuries, illnesses, and associated economic burden in Australia. These files can be downloaded after clicking on the green button *Code* at this GitHub repository.
 
 
 # System Requirements
