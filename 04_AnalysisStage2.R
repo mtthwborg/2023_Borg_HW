@@ -388,7 +388,7 @@ for(i in ds.city) {
   # Could technically extract specific RRs values from RRfit/RRlow/RRhigh, but AF more useful as it covers a range of RRs
   png(file = paste0(s2city, .name,', Overall e-r.png'), res=gdpi, width=glength.3by3, height=glength.3by3) # plot location. File name based on heat metric
   plot(.exposure.rr[[i]]$temp, .exposure.rr[[i]]$RRfit, type="n", ylim=rryaxis, lwd=2, col="white",
-       main=i, ylab="Percent change (%)", xlab=paste(exposure.var,'(°C)'),
+       main=i, ylab="Percent change (%)", xlab=paste(exposure.var,'(°K)'),
        cex.main=cexmain, cex.lab=cexlab, cex.axis=cexaxis, lab=c(6,5,7)) # main plot
   .erplot %<a-% { # save main plot additions
     polygon(c(.exposure.rr[[i]]$temp,rev(.exposure.rr[[i]]$temp)),c(.exposure.rr[[i]]$RRlow,rev(.exposure.rr[[i]]$RRhigh)), col="grey89", border=F) # 95% CI envelope
@@ -412,7 +412,7 @@ for(i in ds.city) {
        mgp=c(1.3,0.4,0), cex.lab=cexlab*0.7, cex.axis=cexaxis*0.7, yaxt='n', axes=F) # main plot, but no axes # cexlab*.75, cexaxis*.75
   .erplot
   title(main=i, line=tline*2, cex.main=cexmain*0.7) # closer to plot
-  title(xlab=paste(exposure.var,'(°C)'), line=1.1, cex.lab=cexlab*0.7) # xtitle, moved away from graph
+  title(xlab=paste(exposure.var,'(°K)'), line=1.1, cex.lab=cexlab*0.7) # xtitle, moved away from graph
   axis(1, col.axis="black", cex.axis=cexaxis*0.7, tck=tck.length, mgp=c(2.5,0.3,0)) # x-axis
   axis(2, at=seq(rryaxis[1],rryaxis[2],by=20), col.axis="black", cex.axis=cexaxis*0.7, las=1, tck=tck.length, mgp=c(2.5,0.4,0)) # y-axis on L
   
@@ -478,7 +478,7 @@ for(i in ds.city) {
        mgp=c(1.3,0.4,0), cex.lab=cexlab*0.7, cex.axis=cexaxis*0.7, yaxt='n', axes=F) # main plot, but no axes # cexlab*.75, cexaxis*.75
   .erplot
   title(main=i, line=tline*2, cex.main=cexmain*0.7) # closer to plot
-  title(xlab=paste(exposure.var,'(°C)'), line=1.1, cex.lab=cexlab*0.7) # xtitle, moved away from graph
+  title(xlab=paste(exposure.var,'(°K)'), line=1.1, cex.lab=cexlab*0.7) # xtitle, moved away from graph
   axis(1, col.axis="black", cex.axis=cexaxis*0.7, tck=tck.length, mgp=c(2.5,0.3,0)) # x-axis
   axis(2, at=seq(rryaxis[1],rryaxis[2],by=20), col.axis="black", cex.axis=cexaxis*0.7, las=1, tck=tck.length, mgp=c(2.5,0.4,0)) # y-axis on L
   
