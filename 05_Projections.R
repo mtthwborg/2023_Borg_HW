@@ -3,11 +3,20 @@
 ### Prepare future meteorological data and save as .rda file
 ###   This step is already done for you and is commented out
 ###   However, the code is included to demonstrate how the original data was extracted and edited
+###   This dataset and code, along with the original datasets used to derive it, are available on FigShare
 ##################################################
 # 
 # # Libraries
 # library(raster); library(ncdf4)
-# 
+# library(data.table)
+# library(dplyr)
+# library(HeatStress) # apparent temperature calculations by Casanueva. Need to run the following commands to install: # install.packages("devtools") # devtools::install_github("anacv/HeatStress")
+# library(lubridate) 
+# library(readr) # import csv
+# library(readxl) # import Excel files 
+# library(stringr) # string commands
+# library(zoo)
+
 # # Loop components
 # cities <- c('Adelaide','Brisbane','Canberra','Darwin','Hobart','Melbourne','Perth','Sydney')
 # vrbl <- c('hurs','rsds','tas','tasmax','tasmin')
@@ -29,8 +38,6 @@
 # ## Extract files and save as csv.s
 # 
 # # cciaf.loc <- paste0("your_directory_with_the_files") # Location of Climate Change in Australia (CCIA) files
-# # cciaf.loc <- paste0("/Users/MatthewBorg/Library/CloudStorage/Box-Box/Data original/CCIA/future/") # Location of CIIA files
-# # cciaf.loc <- paste0("C:/Users/a1210385/Box/Data original/CCIA/future/") # Location of CIIA files
 # # 
 # time <- proc.time()[3]
 # for(i in cities) {
