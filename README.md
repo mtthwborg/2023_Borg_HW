@@ -28,9 +28,9 @@ The datasets for use with this example:
   * *school.holidays.rda* is the study list of Australian school holidays from 2004 to 2023 (as a binary variable and a factor variable with levels for each school holiday period). This dataset is sourced from [https://doi.org/10.25909/6311e7b3bc760](https://adelaide.figshare.com/articles/dataset/School_holidays_in_Australian_capital_cities_from_2004_to_2023/20732173).
   * *ccia_future2.rda* is a derived meteorological dataset sourced from [https://doi.org/10.25909/23709657](https://adelaide.figshare.com/articles/dataset/Derived_future_meteorological_datasets_projected_to_2016-2045_and_2036-2065_in_Australian_capital_cities_using_CMIP5_models/23709657). This is derived from datasets provided by "Climate Change in Australia" that are publically available online [Application-ready gridded (5km) datasets - Daily time-series](https://www.climatechangeinaustralia.gov.au/en/obtain-data/download-datasets/](https://www.climatechangeinaustralia.gov.au/en/obtain-data/download-datasets/). The code to create this dataset is included both in the linked figshare and as commented code in *05_Projections.R*.
   * *projpop.rda* is a study dataset of Australian projected worker population counts in each Australian capital city, derived from the online [Australian Bureau of Statistics (ABS) dataset available online]([https://www.abs.gov.au/statistics/labour/employment-and-unemployment/labour-force-australia/latest-release]). 
-    * A simulated claims dataset is created in file "01_DataPrep.R"
+  * A simulated claims dataset is created in file "01_DataPrep.R"
 
-*pop.rda*, *public.holidays.rda* and *school.holidays.rda* were also used in the main study analysis by Borg et al. 2023.
+*ccia_future2.rda*, *pop.rda*, *public.holidays.rda* and *school.holidays.rda* were also used in the main study analysis by Borg et al. 2023.
   
 ## Analysis
 The numbered code files from *01_DataPrep.R* to *04_AnalysisStage2.R* reproduce the study analysis using the aforementioned datasets. They are designed to be run in numerical order:
@@ -66,7 +66,7 @@ The files generated are:
   * *Fractions.csv*. This includes the proportion of the outcome attributable to heatwaves across the study period.
   * *Numbers.csv*. This includes the number of outcome values attributable to heatwaves across the study period.
   * *Numbers per year.csv*. This includes the number of outcome values attributable to heatwaves per year.
-  * *City level*. This is a folder including overall cumulative exposure-response graphs for each city. Graphs wtih a "z" in front of their names include histograms representing the spread of Excess Heat Factor values. The "City vs BLUP" graph showcases the city-level curves before meta-analysis and after being refitted with their best linear unbiased predictors (BLUPs).
+  * *City level*. This is a folder including overall cumulative exposure-response graphs for each city. Graphs wtih a "z" in front of their names include histograms representing the spread of Excess Heat Factor values. The "City vs BLUP" graph showcases the city-level curves before meta-analysis and after being refitted with their BLUPs.
   
 ## Projections
 A folder will be created to store results. The files generated within this folder are:
