@@ -69,8 +69,7 @@ The files generated are:
   * *City level*. This is a folder including overall cumulative exposure-response graphs for each city. Graphs wtih a "z" in front of their names include histograms representing the spread of Excess Heat Factor values. The "City vs BLUP" graph showcases the city-level curves before meta-analysis and after being refitted with their best linear unbiased predictors (BLUPs).
   
 ## Projections
-A folder will be created to store results. This will include the file
-The files generated are:
+A folder will be created to store results. The files generated within this folder are:
   * *Projected DMT.csv*. This contains descriptive statistics on projected meteorological variables, specifically relating to daily mean temperature (DMT).
   * *Fractions.csv*. This includes the proportion of the outcome attributable to heatwaves across the projected time period per year.
   * *Numbers.csv*. This includes the number of outcome values attributable to heatwaves across the projected time period per year.
