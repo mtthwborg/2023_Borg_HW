@@ -30,7 +30,7 @@ The datasets for use with this example:
   * *projpop.rda* is a study dataset of Australian projected worker population counts in each Australian capital city, derived from the online [Australian Bureau of Statistics (ABS) dataset available online]([https://www.abs.gov.au/statistics/labour/employment-and-unemployment/labour-force-australia/latest-release]). 
   * A simulated claims dataset is created in file "01_DataPrep.R"
 
-*ccia_future2.rda*, *pop.rda*, *public.holidays.rda* and *school.holidays.rda* were also used in the main study analysis by Borg et al. 2023.
+All of these datasets except for the simulated claims data and the dataset by Brambilla et al. were used in the main study analysis by Borg et al. 2023.
   
 ## Analysis
 The numbered code files from *01_DataPrep.R* to *04_AnalysisStage2.R* reproduce the study analysis using the aforementioned datasets. They are designed to be run in numerical order:
