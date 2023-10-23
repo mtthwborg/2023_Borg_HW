@@ -542,7 +542,7 @@ projanby <- c(projafby,'Series')
 projan1 <- merge(merge(projans1[Estimate=='est',-"Estimate"], projans1[Estimate=='ci.l',-"Estimate"], by=projanby), projans1[Estimate=='ci.u',-"Estimate"], by=projanby)
 colnames(projan1) <- c(projanby,'Estimate','LCI','UCI')
 projan1[,AN:=paste0(round.fn(Estimate,afyr.r),' (',round.fn(LCI,afyr.r),' to ',round.fn(UCI,afyr.r),')')]
-projan1[,':='(Estimate=NULL, LCI=NULL, UCI=NULL)] # do not want these
+projan1[,':='(Estimate=NULL, LCI=NULL, UCI=NULL)] # remove these columns
 
 ## Reshape AN results to include outcomes on one row
 projan1by <- c(projaf1by,'Series')
