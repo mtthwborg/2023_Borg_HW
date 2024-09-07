@@ -55,7 +55,7 @@ rm(list=ls())   # remove existing variables
 # colnames(brambilla) <- c('City','Year','Month','Day','Hour','temp','rh','ws','ap','dnr','dhr')
 # brambilla[,':='(ws=NULL,ap=NULL,dnr=NULL,dhr=NULL)] # Removing unneeded variables calculation, retaining humidity metrics for sensitivity analyses and components of WBGT
 #
-# ## Calculate het index
+# ## Calculate heat index
 # source('heat.index2.r') # weathermetrics::heat.index modified with a 79 threshold changed to 80 and no rounding
 # brambilla[,hi := heat.index2(t=temp, rh=rh, temperature.metric='celsius', round=9999999),] # Heat index. Use self-code that allows rounding to >2 digits
 #

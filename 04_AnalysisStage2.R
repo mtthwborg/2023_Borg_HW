@@ -3,7 +3,7 @@
 ### Meta-analysis: results of reduced coef and compute BLUPS (best linear unbiased prediction)
 ##################################################
 
-exposure.country.mean <- colMeans(exposure.by) # could arguably weight by area number of years (study frame), but Gasaparrini didn't do this either and impact likely negligible
+exposure.country.mean <- colMeans(exposure.by) # could arguably weight by area number of years (study frame), but Gasparrini didn't do this either and impact likely negligible
 
 ## Meta-analysis. Default methods is REML
 exposure.mean <- exposure[,1] # mean exposure
@@ -201,6 +201,7 @@ for(i in ds.city){
   .perc <-  exposure.by[i,] # all percentiles and related average exposure
   .blups <- blups[[which(ds.city==i)]]
   
+  # Actual values, aligning with results and graphs
   matsim[i,sim.names[1]] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
                                    range=c(-100,.cen))
   matsim[i,sim.names[2]] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
@@ -212,6 +213,7 @@ for(i in ds.city){
   matsim[i,sim.names[5]] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
                                    range=c(exposure_ehf[i,3],100))
   
+  # Empirical 95% CIs
   arraysim[i,sim.names[1],] <- attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
                                       range=c(-100, .cen), sim=T, nsim=nsim)
   arraysim[i,sim.names[2],] <-  attrdl(temps[[i]], .cb, .outcome, coef=.blups$blup, vcov=.blups$vcov, type="an", dir=attrdl.dir, cen=.cen,
