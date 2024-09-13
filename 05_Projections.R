@@ -16,7 +16,7 @@
 # library(readxl) # import Excel files 
 # library(stringr) # string commands
 # library(zoo)
-
+#
 # # Loop components
 # cities <- c('Adelaide','Brisbane','Canberra','Darwin','Hobart','Melbourne','Perth','Sydney')
 # vrbl <- c('hurs','rsds','tas','tasmax','tasmin')
@@ -177,7 +177,7 @@
 # load(file=paste0(barra.loc,'barra_ehfr.rda')) # DMT95 thresholds from BARRA data, barra_ehfr
 # ccia_future2 <- merge(merge(ccia_future1,barra_ehfr, by='City'), ccia_30ehfa, by=c('City','RCP','Model'), all.x=T)
 # 
-# ## EHIsig, btoh with and without adaptation
+# ## EHIsig, both with and without adaptation
 # for(a in cities) {
 #   ccia_future2[City==a, ehisig := dmt3 - dmt95] # EHIsig
 #   ccia_future2[City==a, ehisigf := dmt3f - dmt95] # EHIsig forward
